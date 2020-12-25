@@ -12,16 +12,19 @@ type userHandler struct {
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
 	key         []byte
+	method      jwt.SigningMethod
 }
 
 func newUserHandler(
 	authed echo.MiddlewareFunc,
 	maybeAuthed echo.MiddlewareFunc,
-	key []byte) *userHandler {
+	key []byte,
+	method jwt.SigningMethod) *userHandler {
 	return &userHandler{
 		authed,
 		maybeAuthed,
 		key,
+		method,
 	}
 }
 
@@ -69,7 +72,7 @@ func (r *userHandler) login(c echo.Context) (err error) {
 		return echo.ErrUnauthorized
 	}
 
-	token := jwt.New(jwt.SigningMethodHS256)
+	token := jwt.New(r.method)
 
 	claims := token.Claims.(jwt.MapClaims)
 	claims["name"] = "JonSnow"

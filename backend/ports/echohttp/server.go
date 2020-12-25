@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -14,14 +15,16 @@ func Start(port int, secret string) error {
 	s.Use(middleware.Logger())
 	s.Use(middleware.Recover())
 
-	key := []byte(secret)
+	key, method := []byte(secret), jwt.SigningMethodHS256
 	fullAuth := middleware.JWTWithConfig(middleware.JWTConfig{
-		SigningKey: key,
-		AuthScheme: "Token",
+		SigningKey:    key,
+		SigningMethod: method.Name,
+		AuthScheme:    "Token",
 	})
 	maybeAuth := middleware.JWTWithConfig(middleware.JWTConfig{
-		SigningKey: key,
-		AuthScheme: "Token",
+		SigningKey:    key,
+		SigningMethod: method.Name,
+		AuthScheme:    "Token",
 		Skipper: func(c echo.Context) bool {
 			// Partially auth'd endpoints have different behavior when the user is logged in
 			// We want to make sure that only truly anon requests skip auth in these scenarios
@@ -30,7 +33,7 @@ func Start(port int, secret string) error {
 		},
 	})
 
-	newUserHandler(fullAuth, maybeAuth, key).routes(s)
+	newUserHandler(fullAuth, maybeAuth, key, method).routes(s)
 
 	return s.Start(":" + strconv.Itoa(port))
 }
