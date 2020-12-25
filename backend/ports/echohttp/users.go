@@ -5,12 +5,17 @@ import "github.com/labstack/echo/v4"
 type userHandler struct {
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
+	key         []byte
 }
 
-func newUserHandler(authed echo.MiddlewareFunc, maybeAuthed echo.MiddlewareFunc) *userHandler {
+func newUserHandler(
+	authed echo.MiddlewareFunc,
+	maybeAuthed echo.MiddlewareFunc,
+	key []byte) *userHandler {
 	return &userHandler{
 		authed,
-		authed,
+		maybeAuthed,
+		key,
 	}
 }
 
