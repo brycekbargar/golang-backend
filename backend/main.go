@@ -5,6 +5,5 @@ import (
 )
 
 func main() {
-	server := new(echohttp.Server)
-	server.Start(4123)
+	echohttp.Start(4123)
 }
