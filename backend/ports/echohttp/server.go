@@ -26,7 +26,7 @@ func Start(
 			if strings.HasPrefix(strings.ToLower(c.Path()), "/api/users/login") {
 				return true
 			}
-			if strings.HasPrefix(strings.ToLower(c.Path()), "/api/users") &&
+			if strings.HasPrefix(strings.ToLower(c.Path()), "/api/user") &&
 				(c.Request().Method == http.MethodPost || c.Request().Method == http.MethodPut) {
 				return true
 			}

@@ -55,12 +55,13 @@ func NewUserWithPassword(email string, username string, password string) (*UserW
 	}, nil
 }
 
-// NewUserWithPasswordHash creates a new User with the provide information.
-func NewUserWithPasswordHash(email string, username string, bio string, image string, password PasswordHash) (*UserWithPassword, error) {
-	user, err := NewUser(email, username, "", "")
+// ExistingUser creates a User with the provide information.
+func ExistingUser(email string, username string, bio string, image string, following []*User, password PasswordHash) (*UserWithPassword, error) {
+	user, err := NewUser(email, username, bio, image)
 	if err != nil {
 		return nil, err
 	}
+	user.following = following
 
 	return &UserWithPassword{
 		*user,
