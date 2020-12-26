@@ -14,7 +14,7 @@ type Repository interface {
 	Create(*User) error
 	// GetUserByEmail finds a single user based on their email address.
 	GetUserByEmail(string) (*User, error)
-	// GetUserByUsername finds a single user based on their email address.
+	// GetUserByUsername finds a single user based on their username.
 	GetUserByUsername(string) (*User, error)
 	// UpdateUserByEmail finds a single user based on their email address,
 	// then applies the provide mutations.
