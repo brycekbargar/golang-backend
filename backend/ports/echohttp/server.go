@@ -7,10 +7,15 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 )
 
 // Start starts the given server after performing Echo specific setup.
-func Start(port int, secret string) error {
+func Start(
+	port int,
+	secret string,
+	users userdomain.Repository) error {
 	s := echo.New()
 	s.Use(middleware.Logger())
 	s.Use(middleware.Recover())
@@ -33,7 +38,7 @@ func Start(port int, secret string) error {
 		},
 	})
 
-	newUserHandler(fullAuth, maybeAuth, key, method).routes(s)
+	newUserHandler(users, fullAuth, maybeAuth, key, method).routes(s)
 
 	return s.Start(":" + strconv.Itoa(port))
 }

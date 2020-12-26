@@ -28,19 +28,20 @@ type UserWithPassword struct {
 
 // NewUserWithPassword creates a new User with the provide information.
 // password being a parameter (and also later a prop) is awful and will be removed in the future
-func NewUserWithPassword(email string, password string, username string, bio string, image string) (*UserWithPassword, error) {
+func NewUserWithPassword(email string, username string, password string) (*UserWithPassword, error) {
 	if len(password) == 0 {
 		return nil, ErrorRequiredNewUserFields
 	}
 
-	if user, err := NewUser(email, username, bio, image); err == nil {
-		return &UserWithPassword{
-			*user,
-			password,
-		}, nil
-	} else {
+	user, err := NewUser(email, username, "", "")
+	if err != nil {
 		return nil, err
 	}
+
+	return &UserWithPassword{
+		*user,
+		password,
+	}, nil
 }
 
 // NewUser creates a new User with the provide information.

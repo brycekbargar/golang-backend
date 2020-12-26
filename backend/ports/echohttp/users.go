@@ -6,9 +6,12 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/labstack/echo/v4"
+
+	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 )
 
 type userHandler struct {
+	users       userdomain.Repository
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
 	key         []byte
@@ -16,11 +19,13 @@ type userHandler struct {
 }
 
 func newUserHandler(
+	users userdomain.Repository,
 	authed echo.MiddlewareFunc,
 	maybeAuthed echo.MiddlewareFunc,
 	key []byte,
 	method jwt.SigningMethod) *userHandler {
 	return &userHandler{
+		users,
 		authed,
 		maybeAuthed,
 		key,
@@ -50,8 +55,61 @@ type userUser struct {
 	Image    string `json:"image"`
 }
 
-func (r *userHandler) create(c echo.Context) (err error) {
-	return nil
+type register struct {
+	User registerUser `json:"user"`
+}
+type registerUser struct {
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func makeJwt(r *userHandler, e string) (string, error) {
+	token := jwt.New(r.method)
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["email"] = e
+	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+
+	t, err := token.SignedString(r.key)
+	if err != nil {
+		return "", err
+	}
+
+	return t, nil
+}
+
+func (r *userHandler) create(c echo.Context) error {
+	u := new(register)
+	if err := c.Bind(u); err != nil {
+		return echo.ErrBadRequest
+	}
+
+	created, err := userdomain.NewUserWithPassword(
+		u.User.Email,
+		u.User.Username,
+		u.User.Password,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := r.users.Create(created); err != nil {
+		return err
+	}
+
+	token, err := makeJwt(r, u.User.Email)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, user{
+		userUser{
+			Email:    u.User.Email,
+			Token:    token,
+			Username: u.User.Password,
+		},
+	})
 }
 
 type login struct {
@@ -72,22 +130,15 @@ func (r *userHandler) login(c echo.Context) (err error) {
 		return echo.ErrUnauthorized
 	}
 
-	token := jwt.New(r.method)
-
-	claims := token.Claims.(jwt.MapClaims)
-	claims["name"] = "JonSnow"
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-
-	t, err := token.SignedString(r.key)
+	token, err := makeJwt(r, l.User.Email)
 	if err != nil {
 		return err
 	}
 
 	return c.JSON(http.StatusOK, user{
 		userUser{
-			Email:    l.User.Email,
-			Token:    t,
-			Username: claims["name"].(string),
+			Email: l.User.Email,
+			Token: token,
 		},
 	})
 }
