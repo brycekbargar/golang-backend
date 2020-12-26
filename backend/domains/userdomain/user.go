@@ -1,6 +1,13 @@
 package userdomain
 
-import "errors"
+import (
+	"errors"
+
+	"golang.org/x/crypto/bcrypt"
+)
+
+// PasswordHash is an indicator that a string is a bcrypt hashed value.
+type PasswordHash = string
 
 // ErrorRequiredNewUserFields indicates when a NewUser is attempted to be created without all the required fields.
 var ErrorRequiredNewUserFields = errors.New("password is required to create a user")
@@ -20,10 +27,9 @@ type User struct {
 }
 
 // UserWithPassword is a user that is being created with a password.
-// This will probably die at some point but I'm unsure atm how go idiomatically handles this.
 type UserWithPassword struct {
 	User
-	password string
+	password []byte
 }
 
 // NewUserWithPassword creates a new User with the provide information.
@@ -38,14 +44,31 @@ func NewUserWithPassword(email string, username string, password string) (*UserW
 		return nil, err
 	}
 
+	pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	if err != nil {
+		return nil, err
+	}
+
 	return &UserWithPassword{
 		*user,
-		password,
+		pw,
+	}, nil
+}
+
+// NewUserWithPasswordHash creates a new User with the provide information.
+func NewUserWithPasswordHash(email string, username string, bio string, image string, password PasswordHash) (*UserWithPassword, error) {
+	user, err := NewUser(email, username, "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	return &UserWithPassword{
+		*user,
+		[]byte(password),
 	}, nil
 }
 
 // NewUser creates a new User with the provide information.
-// password being a parameter (and also later a prop) is awful and will be removed in the future
 func NewUser(email string, username string, bio string, image string) (*User, error) {
 	if len(email) == 0 || len(username) == 0 {
 		return nil, ErrorRequiredUserFields
@@ -80,7 +103,16 @@ func (u User) Image() string {
 	return u.image
 }
 
-// Password gets the user's password during creation.
-func (u UserWithPassword) Password() string {
-	return u.password
+// Password gets the user's hashed password.
+func (u UserWithPassword) Password() PasswordHash {
+	return string(u.password)
+}
+
+// HasPassword checks if the provide password string matches the stored hash for the user.
+func (u UserWithPassword) HasPassword(password string) (bool, error) {
+	if err := bcrypt.CompareHashAndPassword(u.password, []byte(password)); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

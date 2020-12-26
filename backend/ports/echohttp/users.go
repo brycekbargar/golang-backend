@@ -129,7 +129,7 @@ func (r *userHandler) login(c echo.Context) (err error) {
 		return err
 	}
 
-	if l.User.Password != authed.Password() {
+	if pw, err := authed.HasPassword(l.User.Password); !pw || err != nil {
 		return echo.ErrUnauthorized
 	}
 
