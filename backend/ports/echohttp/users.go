@@ -126,19 +126,27 @@ func (r *userHandler) login(c echo.Context) (err error) {
 		return echo.ErrBadRequest
 	}
 
-	if l.User.Email != "jon@jonsnow.com" || l.User.Password != "shhh!" {
+	authed, err := r.users.GetLoginUserByEmail(l.User.Email)
+	if err != nil {
+		return err
+	}
+
+	if l.User.Password != authed.Password() {
 		return echo.ErrUnauthorized
 	}
 
-	token, err := makeJwt(r, l.User.Email)
+	token, err := makeJwt(r, authed.Email())
 	if err != nil {
 		return err
 	}
 
 	return c.JSON(http.StatusOK, user{
 		userUser{
-			Email: l.User.Email,
-			Token: token,
+			Email:    authed.Email(),
+			Username: authed.Username(),
+			Token:    token,
+			Bio:      authed.Bio(),
+			Image:    authed.Image(),
 		},
 	})
 }
@@ -146,13 +154,23 @@ func (r *userHandler) login(c echo.Context) (err error) {
 func (r *userHandler) user(c echo.Context) (err error) {
 	ju := c.Get("user").(*jwt.Token)
 	claims := ju.Claims.(jwt.MapClaims)
+
+	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	if err != nil {
+		return err
+	}
+
 	return c.JSON(http.StatusOK, user{
 		userUser{
+			Email:    found.Email(),
+			Username: found.Username(),
 			Token:    ju.Raw,
-			Username: claims["name"].(string),
+			Bio:      found.Bio(),
+			Image:    found.Image(),
 		},
 	})
 }
+
 func (r *userHandler) update(c echo.Context) (err error) {
 	return nil
 }
