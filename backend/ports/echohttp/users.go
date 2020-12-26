@@ -37,9 +37,9 @@ func (r *userHandler) routes(g *echo.Group) {
 	g.GET("/user", r.user, r.authed)
 	g.PUT("/user", r.update, r.authed)
 
-	g.GET("/profile/:name", r.profile, r.maybeAuthed)
-	g.GET("/profile/:name/follow", r.follow, r.authed)
-	g.DELETE("/profile/:name/follow", r.unfollow, r.authed)
+	g.GET("/profile/:username", r.profile, r.maybeAuthed)
+	g.GET("/profile/:username/follow", r.follow, r.authed)
+	g.DELETE("/profile/:username/follow", r.unfollow, r.authed)
 }
 
 type user struct {
@@ -172,14 +172,104 @@ func (r *userHandler) user(c echo.Context) (err error) {
 func (r *userHandler) update(c echo.Context) (err error) {
 	return nil
 }
+
+type profile struct {
+	Profile profileUser `json:"profile"`
+}
+type profileUser struct {
+	Username  string `json:"username"`
+	Bio       string `json:"bio"`
+	Image     string `json:"image"`
+	Following bool   `json:"following"`
+}
+
 func (r *userHandler) profile(c echo.Context) (err error) {
-	return nil
+	found, err := r.users.GetUserByUsername(c.Param("username"))
+	if err != nil {
+		return err
+	}
+
+	following := false
+	if j := c.Get("user"); j != nil {
+		ju := j.(*jwt.Token)
+		claims := ju.Claims.(jwt.MapClaims)
+
+		cu, err := r.users.GetUserByEmail(claims["email"].(string))
+		if err != nil {
+			return err
+		}
+
+		following = cu.IsFollowing(found)
+	}
+
+	return c.JSON(http.StatusOK, profile{
+		profileUser{
+			Username:  found.Username(),
+			Bio:       found.Bio(),
+			Image:     found.Image(),
+			Following: following,
+		},
+	})
 }
 
 func (r *userHandler) follow(c echo.Context) (err error) {
-	return nil
+	ju := c.Get("user").(*jwt.Token)
+	claims := ju.Claims.(jwt.MapClaims)
+
+	fu, err := r.users.GetUserByUsername(c.Param("username"))
+	if err != nil {
+		return err
+	}
+
+	r.users.UpdateUserByEmail(
+		claims["email"].(string),
+		func(u *userdomain.User) (*userdomain.User, error) {
+			u.StartFollowing(fu)
+			return u, nil
+		})
+
+	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, profile{
+		profileUser{
+			Username:  found.Username(),
+			Bio:       found.Bio(),
+			Image:     found.Image(),
+			Following: found.IsFollowing(fu),
+		},
+	})
 }
 
 func (r *userHandler) unfollow(c echo.Context) (err error) {
-	return nil
+	ju := c.Get("user").(*jwt.Token)
+	claims := ju.Claims.(jwt.MapClaims)
+
+	fu, err := r.users.GetUserByUsername(c.Param("username"))
+	if err != nil {
+		return err
+	}
+
+	r.users.UpdateUserByEmail(
+		claims["email"].(string),
+		func(u *userdomain.User) (*userdomain.User, error) {
+			u.StopFollowing(fu)
+			return u, nil
+		})
+
+	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, profile{
+		profileUser{
+			Username:  found.Username(),
+			Bio:       found.Bio(),
+			Image:     found.Image(),
+			Following: found.IsFollowing(fu),
+		},
+	})
 }

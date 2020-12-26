@@ -23,7 +23,7 @@ type User struct {
 	username  string
 	bio       string
 	image     string
-	following []User
+	following []*User
 }
 
 // UserWithPassword is a user that is being created with a password.
@@ -79,7 +79,7 @@ func NewUser(email string, username string, bio string, image string) (*User, er
 		username,
 		bio,
 		image,
-		make([]User, 0),
+		make([]*User, 0),
 	}, nil
 }
 
@@ -115,4 +115,34 @@ func (u UserWithPassword) HasPassword(password string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// IsFollowing checks if the provided user is currently being followed by this user.
+func (u *User) IsFollowing(fu *User) bool {
+	for _, f := range u.following {
+		if f.email == fu.email {
+			return true
+		}
+	}
+
+	return false
+}
+
+// StartFollowing tracks that the provided user should be followed.
+// This method is idempotent (but possibly not thread-safe).
+func (u *User) StartFollowing(fu *User) {
+	if u.IsFollowing(fu) {
+		return
+	}
+	u.following = append(u.following, fu)
+}
+
+// StopFollowing tracks that the provided user should be unfollowed.
+// This method is idempotent (but possibly not thread-safe).
+func (u *User) StopFollowing(su *User) {
+	for i, f := range u.following {
+		if f.email == su.email {
+			u.following = append(u.following[:i], u.following[i+1:]...)
+		}
+	}
 }
