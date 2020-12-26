@@ -9,11 +9,8 @@ import (
 // PasswordHash is an indicator that a string is a bcrypt hashed value.
 type PasswordHash = string
 
-// ErrorRequiredNewUserFields indicates when a NewUser is attempted to be created without all the required fields.
-var ErrorRequiredNewUserFields = errors.New("password is required to create a user")
-
 // ErrorRequiredUserFields indicates when a NewUser is instantiated without all the required fields.
-var ErrorRequiredUserFields = errors.New("email and username are required for users")
+var ErrorRequiredUserFields = errors.New("email, username, and password are required for users")
 
 // User is an individual user in the application.
 // A user can be both the current client logged in (usually id'd by username)
@@ -29,11 +26,8 @@ type User struct {
 
 // NewUserWithPassword creates a new User with the provide information.
 func NewUserWithPassword(email string, username string, password string) (*User, error) {
-	if len(email) == 0 || len(username) == 0 {
+	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
 		return nil, ErrorRequiredUserFields
-	}
-	if len(password) == 0 {
-		return nil, ErrorRequiredNewUserFields
 	}
 
 	pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -50,7 +44,7 @@ func NewUserWithPassword(email string, username string, password string) (*User,
 
 // ExistingUser creates a User with the provide information.
 func ExistingUser(email string, username string, bio string, image string, following []*User, password PasswordHash) (*User, error) {
-	if len(email) == 0 || len(username) == 0 {
+	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
 		return nil, ErrorRequiredUserFields
 	}
 
@@ -65,7 +59,7 @@ func ExistingUser(email string, username string, bio string, image string, follo
 }
 
 // UpdatedUser merged the provided user with the (optional) new values provided.
-func UpdatedUser(user *User, email string, username string, bio *string, image *string, password string) (*User, error) {
+func UpdatedUser(user User, email string, username string, bio *string, image *string, password string) (*User, error) {
 	if len(email) > 0 {
 		user.email = email
 	}
@@ -86,7 +80,7 @@ func UpdatedUser(user *User, email string, username string, bio *string, image *
 		user.password = pw
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 // Email is user's email address, which acts as their id.
@@ -114,9 +108,24 @@ func (u User) Password() PasswordHash {
 	return string(u.password)
 }
 
+// FollowingEmails gets the emails of the other users this user is following.
+func (u User) FollowingEmails() []string {
+	es := make([]string, 0, len(u.following))
+	for _, fu := range u.following {
+		es = append(es, fu.email)
+	}
+
+	return es
+}
+
 // HasPassword checks if the provide password string matches the stored hash for the user.
 func (u *User) HasPassword(password string) (bool, error) {
-	if err := bcrypt.CompareHashAndPassword(u.password, []byte(password)); err != nil {
+	err := bcrypt.CompareHashAndPassword(u.password, []byte(password))
+	if err == bcrypt.ErrMismatchedHashAndPassword {
+		return false, nil
+	}
+
+	if err != nil {
 		return false, err
 	}
 
@@ -125,6 +134,10 @@ func (u *User) HasPassword(password string) (bool, error) {
 
 // IsFollowing checks if the provided user is currently being followed by this user.
 func (u *User) IsFollowing(fu *User) bool {
+	if fu == nil {
+		return false
+	}
+
 	for _, f := range u.following {
 		if f.email == fu.email {
 			return true
@@ -137,7 +150,7 @@ func (u *User) IsFollowing(fu *User) bool {
 // StartFollowing tracks that the provided user should be followed.
 // This method is idempotent (but possibly not thread-safe).
 func (u *User) StartFollowing(fu *User) {
-	if u.IsFollowing(fu) {
+	if fu == nil || u.IsFollowing(fu) {
 		return
 	}
 	u.following = append(u.following, fu)
@@ -146,6 +159,10 @@ func (u *User) StartFollowing(fu *User) {
 // StopFollowing tracks that the provided user should be unfollowed.
 // This method is idempotent (but possibly not thread-safe).
 func (u *User) StopFollowing(su *User) {
+	if su == nil {
+		return
+	}
+
 	for i, f := range u.following {
 		if f.email == su.email {
 			u.following = append(u.following[:i], u.following[i+1:]...)

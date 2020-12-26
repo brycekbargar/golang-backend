@@ -180,7 +180,7 @@ func (r *userHandler) update(c echo.Context) error {
 	err := r.users.UpdateUserByEmail(
 		*uc.email,
 		func(u *userdomain.User) (*userdomain.User, error) {
-			return userdomain.UpdatedUser(u,
+			return userdomain.UpdatedUser(*u,
 				b.User.Email,
 				b.User.Username,
 				b.User.Bio,
