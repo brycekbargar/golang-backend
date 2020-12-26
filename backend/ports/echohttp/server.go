@@ -4,31 +4,29 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/brycekbargar/realworld-backend/domains/userdomain"
+	"github.com/brycekbargar/realworld-backend/ports"
 )
 
 // Start starts the given server after performing Echo specific setup.
 func Start(
+	jc ports.JWTConfig,
 	port int,
-	secret string,
 	users userdomain.Repository) error {
 	s := echo.New()
 	s.Use(middleware.Logger())
-	s.Use(middleware.Recover())
 
-	key, method := []byte(secret), jwt.SigningMethodHS256
 	fullAuth := middleware.JWTWithConfig(middleware.JWTConfig{
-		SigningKey:    key,
-		SigningMethod: method.Name,
+		SigningKey:    jc.Key,
+		SigningMethod: jc.Method.Name,
 		AuthScheme:    "Token",
 	})
 	maybeAuth := middleware.JWTWithConfig(middleware.JWTConfig{
-		SigningKey:    key,
-		SigningMethod: method.Name,
+		SigningKey:    jc.Key,
+		SigningMethod: jc.Method.Name,
 		AuthScheme:    "Token",
 		Skipper: func(c echo.Context) bool {
 			// Partially auth'd endpoints have different behavior when the user is logged in
@@ -38,7 +36,7 @@ func Start(
 		},
 	})
 
-	newUserHandler(users, fullAuth, maybeAuth, key, method).routes(s)
+	newUserHandler(users, fullAuth, maybeAuth, jc).routes(s)
 
 	return s.Start(":" + strconv.Itoa(port))
 }

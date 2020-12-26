@@ -8,28 +8,26 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/brycekbargar/realworld-backend/domains/userdomain"
+	"github.com/brycekbargar/realworld-backend/ports"
 )
 
 type userHandler struct {
 	users       userdomain.Repository
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
-	key         []byte
-	method      jwt.SigningMethod
+	jc          ports.JWTConfig
 }
 
 func newUserHandler(
 	users userdomain.Repository,
 	authed echo.MiddlewareFunc,
 	maybeAuthed echo.MiddlewareFunc,
-	key []byte,
-	method jwt.SigningMethod) *userHandler {
+	jc ports.JWTConfig) *userHandler {
 	return &userHandler{
 		users,
 		authed,
 		maybeAuthed,
-		key,
-		method,
+		jc,
 	}
 }
 
@@ -65,13 +63,13 @@ type registerUser struct {
 }
 
 func makeJwt(r *userHandler, e string) (string, error) {
-	token := jwt.New(r.method)
+	token := jwt.New(r.jc.Method)
 
 	claims := token.Claims.(jwt.MapClaims)
 	claims["email"] = e
 	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 
-	t, err := token.SignedString(r.key)
+	t, err := token.SignedString(r.jc.Key)
 	if err != nil {
 		return "", err
 	}
