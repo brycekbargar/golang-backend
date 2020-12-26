@@ -31,15 +31,15 @@ func newUserHandler(
 	}
 }
 
-func (r *userHandler) routes(s *echo.Echo) {
-	s.POST("/users", r.create)
-	s.POST("/users/login", r.login)
-	s.GET("/user", r.user, r.authed)
-	s.PUT("/user", r.update, r.authed)
+func (r *userHandler) routes(g *echo.Group) {
+	g.POST("/users", r.create)
+	g.POST("/users/login", r.login)
+	g.GET("/user", r.user, r.authed)
+	g.PUT("/user", r.update, r.authed)
 
-	s.GET("/profile/:name", r.profile, r.maybeAuthed)
-	s.GET("/profile/:name/follow", r.follow, r.authed)
-	s.DELETE("/profile/:name/follow", r.unfollow, r.authed)
+	g.GET("/profile/:name", r.profile, r.maybeAuthed)
+	g.GET("/profile/:name/follow", r.follow, r.authed)
+	g.DELETE("/profile/:name/follow", r.unfollow, r.authed)
 }
 
 type user struct {

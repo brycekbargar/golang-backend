@@ -1,6 +1,7 @@
 package echohttp
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -17,7 +18,22 @@ func Start(
 	port int,
 	users userdomain.Repository) error {
 	s := echo.New()
-	s.Use(middleware.Logger())
+	s.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Skipper: func(c echo.Context) bool {
+			// TODO: Figure out how now to leak the route details?
+			// TODO: Also figure out how this is _really_ done.
+			// These routes take a password in the parameters so we want to leave them out of logs.
+			if strings.HasPrefix(strings.ToLower(c.Path()), "/api/users/login") {
+				return true
+			}
+			if strings.HasPrefix(strings.ToLower(c.Path()), "/api/users") &&
+				(c.Request().Method == http.MethodPost || c.Request().Method == http.MethodPut) {
+				return true
+			}
+
+			return false
+		},
+	}))
 
 	fullAuth := middleware.JWTWithConfig(middleware.JWTConfig{
 		SigningKey:    jc.Key,
@@ -36,7 +52,8 @@ func Start(
 		},
 	})
 
-	newUserHandler(users, fullAuth, maybeAuth, jc).routes(s)
+	api := s.Group("/api")
+	newUserHandler(users, fullAuth, maybeAuth, jc).routes(api)
 
 	return s.Start(":" + strconv.Itoa(port))
 }
