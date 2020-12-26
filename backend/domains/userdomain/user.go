@@ -24,24 +24,16 @@ type User struct {
 	bio       string
 	image     string
 	following []*User
-}
-
-// UserWithPassword is a user that is being created with a password.
-type UserWithPassword struct {
-	User
-	password []byte
+	password  []byte
 }
 
 // NewUserWithPassword creates a new User with the provide information.
-// password being a parameter (and also later a prop) is awful and will be removed in the future
-func NewUserWithPassword(email string, username string, password string) (*UserWithPassword, error) {
+func NewUserWithPassword(email string, username string, password string) (*User, error) {
+	if len(email) == 0 || len(username) == 0 {
+		return nil, ErrorRequiredUserFields
+	}
 	if len(password) == 0 {
 		return nil, ErrorRequiredNewUserFields
-	}
-
-	user, err := NewUser(email, username, "", "")
-	if err != nil {
-		return nil, err
 	}
 
 	pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -49,28 +41,15 @@ func NewUserWithPassword(email string, username string, password string) (*UserW
 		return nil, err
 	}
 
-	return &UserWithPassword{
-		*user,
-		pw,
+	return &User{
+		email:    email,
+		username: username,
+		password: pw,
 	}, nil
 }
 
 // ExistingUser creates a User with the provide information.
-func ExistingUser(email string, username string, bio string, image string, following []*User, password PasswordHash) (*UserWithPassword, error) {
-	user, err := NewUser(email, username, bio, image)
-	if err != nil {
-		return nil, err
-	}
-	user.following = following
-
-	return &UserWithPassword{
-		*user,
-		[]byte(password),
-	}, nil
-}
-
-// NewUser creates a new User with the provide information.
-func NewUser(email string, username string, bio string, image string) (*User, error) {
+func ExistingUser(email string, username string, bio string, image string, following []*User, password PasswordHash) (*User, error) {
 	if len(email) == 0 || len(username) == 0 {
 		return nil, ErrorRequiredUserFields
 	}
@@ -80,8 +59,34 @@ func NewUser(email string, username string, bio string, image string) (*User, er
 		username,
 		bio,
 		image,
-		make([]*User, 0),
+		following,
+		[]byte(password),
 	}, nil
+}
+
+// UpdatedUser merged the provided user with the (optional) new values provided.
+func UpdatedUser(user *User, email string, username string, bio *string, image *string, password string) (*User, error) {
+	if len(email) > 0 {
+		user.email = email
+	}
+	if len(username) > 0 {
+		user.username = username
+	}
+	if bio != nil {
+		user.bio = *bio
+	}
+	if image != nil {
+		user.image = *image
+	}
+	if len(password) > 0 {
+		pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+		if err != nil {
+			return nil, err
+		}
+		user.password = pw
+	}
+
+	return user, nil
 }
 
 // Email is user's email address, which acts as their id.
@@ -105,12 +110,12 @@ func (u User) Image() string {
 }
 
 // Password gets the user's hashed password.
-func (u UserWithPassword) Password() PasswordHash {
+func (u User) Password() PasswordHash {
 	return string(u.password)
 }
 
 // HasPassword checks if the provide password string matches the stored hash for the user.
-func (u UserWithPassword) HasPassword(password string) (bool, error) {
+func (u *User) HasPassword(password string) (bool, error) {
 	if err := bcrypt.CompareHashAndPassword(u.password, []byte(password)); err != nil {
 		return false, err
 	}

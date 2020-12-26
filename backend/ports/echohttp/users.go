@@ -46,11 +46,12 @@ type user struct {
 	User userUser `json:"user"`
 }
 type userUser struct {
-	Email    string `json:"email"`
-	Token    string `json:"token"`
-	Username string `json:"username"`
-	Bio      string `json:"bio"`
-	Image    string `json:"image"`
+	Email    string  `json:"email"`
+	Token    string  `json:"token"`
+	Username string  `json:"username"`
+	Bio      *string `json:"bio"`
+	Image    *string `json:"image"`
+	Password *string `json:"password,omitempty"`
 }
 
 type register struct {
@@ -105,7 +106,7 @@ func (r *userHandler) create(c echo.Context) error {
 		userUser{
 			Email:    u.User.Email,
 			Token:    token,
-			Username: u.User.Password,
+			Username: u.User.Username,
 		},
 	})
 }
@@ -118,13 +119,13 @@ type loginUser struct {
 	Password string `json:"password"`
 }
 
-func (r *userHandler) login(c echo.Context) (err error) {
+func (r *userHandler) login(c echo.Context) error {
 	l := new(login)
-	if err = c.Bind(l); err != nil {
+	if err := c.Bind(l); err != nil {
 		return echo.ErrBadRequest
 	}
 
-	authed, err := r.users.GetLoginUserByEmail(l.User.Email)
+	authed, err := r.users.GetUserByEmail(l.User.Email)
 	if err != nil {
 		return err
 	}
@@ -143,13 +144,13 @@ func (r *userHandler) login(c echo.Context) (err error) {
 			Email:    authed.Email(),
 			Username: authed.Username(),
 			Token:    token,
-			Bio:      authed.Bio(),
-			Image:    authed.Image(),
+			Bio:      optional(authed.Bio()),
+			Image:    optional(authed.Image()),
 		},
 	})
 }
 
-func (r *userHandler) user(c echo.Context) (err error) {
+func (r *userHandler) user(c echo.Context) error {
 	ju := c.Get("user").(*jwt.Token)
 	claims := ju.Claims.(jwt.MapClaims)
 
@@ -163,14 +164,49 @@ func (r *userHandler) user(c echo.Context) (err error) {
 			Email:    found.Email(),
 			Username: found.Username(),
 			Token:    ju.Raw,
-			Bio:      found.Bio(),
-			Image:    found.Image(),
+			Bio:      optional(found.Bio()),
+			Image:    optional(found.Image()),
 		},
 	})
 }
 
-func (r *userHandler) update(c echo.Context) (err error) {
-	return nil
+func (r *userHandler) update(c echo.Context) error {
+	b := new(user)
+	if err := c.Bind(b); err != nil {
+		return echo.ErrBadRequest
+	}
+
+	ju := c.Get("user").(*jwt.Token)
+	claims := ju.Claims.(jwt.MapClaims)
+
+	err := r.users.UpdateUserByEmail(
+		claims["email"].(string),
+		func(u *userdomain.User) (*userdomain.User, error) {
+			return userdomain.UpdatedUser(u,
+				b.User.Email,
+				b.User.Username,
+				b.User.Bio,
+				b.User.Image,
+				*b.User.Password)
+		})
+	if err != nil {
+		return err
+	}
+
+	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, user{
+		userUser{
+			Email:    found.Email(),
+			Username: found.Username(),
+			Token:    ju.Raw,
+			Bio:      optional(found.Bio()),
+			Image:    optional(found.Image()),
+		},
+	})
 }
 
 type profile struct {
@@ -212,7 +248,7 @@ func (r *userHandler) profile(c echo.Context) (err error) {
 	})
 }
 
-func (r *userHandler) follow(c echo.Context) (err error) {
+func (r *userHandler) follow(c echo.Context) error {
 	ju := c.Get("user").(*jwt.Token)
 	claims := ju.Claims.(jwt.MapClaims)
 
@@ -221,12 +257,15 @@ func (r *userHandler) follow(c echo.Context) (err error) {
 		return err
 	}
 
-	r.users.UpdateUserByEmail(
+	err = r.users.UpdateUserByEmail(
 		claims["email"].(string),
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StartFollowing(fu)
 			return u, nil
 		})
+	if err != nil {
+		return err
+	}
 
 	found, err := r.users.GetUserByEmail(claims["email"].(string))
 	if err != nil {
@@ -243,7 +282,7 @@ func (r *userHandler) follow(c echo.Context) (err error) {
 	})
 }
 
-func (r *userHandler) unfollow(c echo.Context) (err error) {
+func (r *userHandler) unfollow(c echo.Context) error {
 	ju := c.Get("user").(*jwt.Token)
 	claims := ju.Claims.(jwt.MapClaims)
 
@@ -252,12 +291,15 @@ func (r *userHandler) unfollow(c echo.Context) (err error) {
 		return err
 	}
 
-	r.users.UpdateUserByEmail(
+	err = r.users.UpdateUserByEmail(
 		claims["email"].(string),
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StopFollowing(fu)
 			return u, nil
 		})
+	if err != nil {
+		return err
+	}
 
 	found, err := r.users.GetUserByEmail(claims["email"].(string))
 	if err != nil {
@@ -272,4 +314,8 @@ func (r *userHandler) unfollow(c echo.Context) (err error) {
 			Following: found.IsFollowing(fu),
 		},
 	})
+}
+
+func optional(s string) *string {
+	return &s
 }

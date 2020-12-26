@@ -11,14 +11,11 @@ var ErrorDuplicateValue = errors.New("created user has a duplicate username or e
 // Repository allows performing abstracted I/O operations on users.
 type Repository interface {
 	// Create creates a new user.
-	Create(*UserWithPassword) error
+	Create(*User) error
 	// GetUserByEmail finds a single user based on their email address.
 	GetUserByEmail(string) (*User, error)
 	// GetUserByUsername finds a single user based on their email address.
 	GetUserByUsername(string) (*User, error)
-	// GetLoginUserByEmail finds a single user based on their email address.
-	// The returned user allows for password checking and updating.
-	GetLoginUserByEmail(string) (*UserWithPassword, error)
 	// UpdateUserByEmail finds a single user based on their email address,
 	// then applies the provide mutations.
 	UpdateUserByEmail(string, func(*User) (*User, error)) error
