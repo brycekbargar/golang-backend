@@ -18,9 +18,18 @@ func Start(
 	port int,
 	users userdomain.Repository) error {
 	s := echo.New()
+	s.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			uc, err := userContextCreate(c)
+			if err != nil {
+				return nil
+			}
+			return next(uc)
+		}
+	})
 	s.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Skipper: func(c echo.Context) bool {
-			// TODO: Figure out how now to leak the route details?
+			// TODO: Figure out how not to leak the route details?
 			// TODO: Also figure out how this is _really_ done.
 			// These routes take a password in the parameters so we want to leave them out of logs.
 			if strings.HasPrefix(strings.ToLower(c.Path()), "/api/users/login") {
@@ -46,9 +55,8 @@ func Start(
 		AuthScheme:    "Token",
 		Skipper: func(c echo.Context) bool {
 			// Partially auth'd endpoints have different behavior when the user is logged in
-			// We want to make sure that only truly anon requests skip auth in these scenarios
-			auth := c.Request().Header.Get("Authorization")
-			return len(auth) == 0 || len(strings.TrimPrefix(auth, "Token ")) == 0
+			// We want to make sure that anon requests skip auth in these scenarios
+			return c.(*userContext).token == nil
 		},
 	})
 

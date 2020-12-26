@@ -151,10 +151,9 @@ func (r *userHandler) login(c echo.Context) error {
 }
 
 func (r *userHandler) user(c echo.Context) error {
-	ju := c.Get("user").(*jwt.Token)
-	claims := ju.Claims.(jwt.MapClaims)
+	uc := c.(*userContext)
 
-	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	found, err := r.users.GetUserByEmail(*uc.email)
 	if err != nil {
 		return err
 	}
@@ -163,7 +162,7 @@ func (r *userHandler) user(c echo.Context) error {
 		userUser{
 			Email:    found.Email(),
 			Username: found.Username(),
-			Token:    ju.Raw,
+			Token:    uc.token.Raw,
 			Bio:      optional(found.Bio()),
 			Image:    optional(found.Image()),
 		},
@@ -171,16 +170,15 @@ func (r *userHandler) user(c echo.Context) error {
 }
 
 func (r *userHandler) update(c echo.Context) error {
+	uc := c.(*userContext)
+
 	b := new(user)
 	if err := c.Bind(b); err != nil {
 		return echo.ErrBadRequest
 	}
 
-	ju := c.Get("user").(*jwt.Token)
-	claims := ju.Claims.(jwt.MapClaims)
-
 	err := r.users.UpdateUserByEmail(
-		claims["email"].(string),
+		*uc.email,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			return userdomain.UpdatedUser(u,
 				b.User.Email,
@@ -193,7 +191,13 @@ func (r *userHandler) update(c echo.Context) error {
 		return err
 	}
 
-	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	found, err := r.users.GetUserByEmail(*uc.email)
+	if err != nil {
+		return err
+	}
+
+	// Users can change their email so we need to make sure we're giving them a new token.
+	token, err := makeJwt(r, found.Email())
 	if err != nil {
 		return err
 	}
@@ -202,7 +206,7 @@ func (r *userHandler) update(c echo.Context) error {
 		userUser{
 			Email:    found.Email(),
 			Username: found.Username(),
-			Token:    ju.Raw,
+			Token:    token,
 			Bio:      optional(found.Bio()),
 			Image:    optional(found.Image()),
 		},
@@ -220,17 +224,16 @@ type profileUser struct {
 }
 
 func (r *userHandler) profile(c echo.Context) (err error) {
+	uc := c.(*userContext)
+
 	found, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
 		return err
 	}
 
 	following := false
-	if j := c.Get("user"); j != nil {
-		ju := j.(*jwt.Token)
-		claims := ju.Claims.(jwt.MapClaims)
-
-		cu, err := r.users.GetUserByEmail(claims["email"].(string))
+	if uc.email != nil {
+		cu, err := r.users.GetUserByEmail(*uc.email)
 		if err != nil {
 			return err
 		}
@@ -249,8 +252,7 @@ func (r *userHandler) profile(c echo.Context) (err error) {
 }
 
 func (r *userHandler) follow(c echo.Context) error {
-	ju := c.Get("user").(*jwt.Token)
-	claims := ju.Claims.(jwt.MapClaims)
+	uc := c.(*userContext)
 
 	fu, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
@@ -258,7 +260,7 @@ func (r *userHandler) follow(c echo.Context) error {
 	}
 
 	err = r.users.UpdateUserByEmail(
-		claims["email"].(string),
+		*uc.email,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StartFollowing(fu)
 			return u, nil
@@ -267,7 +269,7 @@ func (r *userHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	found, err := r.users.GetUserByEmail(*uc.email)
 	if err != nil {
 		return err
 	}
@@ -283,8 +285,7 @@ func (r *userHandler) follow(c echo.Context) error {
 }
 
 func (r *userHandler) unfollow(c echo.Context) error {
-	ju := c.Get("user").(*jwt.Token)
-	claims := ju.Claims.(jwt.MapClaims)
+	uc := c.(*userContext)
 
 	fu, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
@@ -292,7 +293,7 @@ func (r *userHandler) unfollow(c echo.Context) error {
 	}
 
 	err = r.users.UpdateUserByEmail(
-		claims["email"].(string),
+		*uc.email,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StopFollowing(fu)
 			return u, nil
@@ -301,7 +302,7 @@ func (r *userHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	found, err := r.users.GetUserByEmail(claims["email"].(string))
+	found, err := r.users.GetUserByEmail(*uc.email)
 	if err != nil {
 		return err
 	}
