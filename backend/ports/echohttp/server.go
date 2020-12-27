@@ -20,10 +20,7 @@ func Start(
 	s := echo.New()
 	s.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			uc, err := userContextCreate(c)
-			if err != nil {
-				return nil
-			}
+			uc := &userContext{c}
 			return next(uc)
 		}
 	})
@@ -56,7 +53,8 @@ func Start(
 		Skipper: func(c echo.Context) bool {
 			// Partially auth'd endpoints have different behavior when the user is logged in
 			// We want to make sure that anon requests skip auth in these scenarios
-			return c.(*userContext).token == nil
+			auth := c.Request().Header.Get("Authorization")
+			return len(strings.TrimPrefix(strings.ToLower(auth), "token ")) == 0
 		},
 	})
 

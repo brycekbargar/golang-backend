@@ -37,9 +37,9 @@ func (r *userHandler) routes(g *echo.Group) {
 	g.GET("/user", r.user, r.authed)
 	g.PUT("/user", r.update, r.authed)
 
-	g.GET("/profile/:username", r.profile, r.maybeAuthed)
-	g.GET("/profile/:username/follow", r.follow, r.authed)
-	g.DELETE("/profile/:username/follow", r.unfollow, r.authed)
+	g.GET("/profiles/:username", r.profile, r.maybeAuthed)
+	g.POST("/profiles/:username/follow", r.follow, r.authed)
+	g.DELETE("/profiles/:username/follow", r.unfollow, r.authed)
 }
 
 type user struct {
@@ -151,9 +151,12 @@ func (r *userHandler) login(c echo.Context) error {
 }
 
 func (r *userHandler) user(c echo.Context) error {
-	uc := c.(*userContext)
+	em, token, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
 
-	found, err := r.users.GetUserByEmail(*uc.email)
+	found, err := r.users.GetUserByEmail(em)
 	if err != nil {
 		return err
 	}
@@ -162,7 +165,7 @@ func (r *userHandler) user(c echo.Context) error {
 		userUser{
 			Email:    found.Email(),
 			Username: found.Username(),
-			Token:    uc.token.Raw,
+			Token:    token.Raw,
 			Bio:      optional(found.Bio()),
 			Image:    optional(found.Image()),
 		},
@@ -170,7 +173,10 @@ func (r *userHandler) user(c echo.Context) error {
 }
 
 func (r *userHandler) update(c echo.Context) error {
-	uc := c.(*userContext)
+	em, _, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
 
 	b := new(user)
 	if err := c.Bind(b); err != nil {
@@ -178,7 +184,7 @@ func (r *userHandler) update(c echo.Context) error {
 	}
 
 	err := r.users.UpdateUserByEmail(
-		*uc.email,
+		em,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			return userdomain.UpdatedUser(*u,
 				b.User.Email,
@@ -191,7 +197,7 @@ func (r *userHandler) update(c echo.Context) error {
 		return err
 	}
 
-	found, err := r.users.GetUserByEmail(*uc.email)
+	found, err := r.users.GetUserByEmail(em)
 	if err != nil {
 		return err
 	}
@@ -224,7 +230,7 @@ type profileUser struct {
 }
 
 func (r *userHandler) profile(c echo.Context) (err error) {
-	uc := c.(*userContext)
+	em, _, _ := c.(*userContext).identity()
 
 	found, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
@@ -232,8 +238,8 @@ func (r *userHandler) profile(c echo.Context) (err error) {
 	}
 
 	following := false
-	if uc.email != nil {
-		cu, err := r.users.GetUserByEmail(*uc.email)
+	if len(em) > 0 {
+		cu, err := r.users.GetUserByEmail(em)
 		if err != nil {
 			return err
 		}
@@ -252,7 +258,10 @@ func (r *userHandler) profile(c echo.Context) (err error) {
 }
 
 func (r *userHandler) follow(c echo.Context) error {
-	uc := c.(*userContext)
+	em, _, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
 
 	fu, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
@@ -260,7 +269,7 @@ func (r *userHandler) follow(c echo.Context) error {
 	}
 
 	err = r.users.UpdateUserByEmail(
-		*uc.email,
+		em,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StartFollowing(fu)
 			return u, nil
@@ -269,7 +278,7 @@ func (r *userHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	found, err := r.users.GetUserByEmail(*uc.email)
+	found, err := r.users.GetUserByEmail(fu.Email())
 	if err != nil {
 		return err
 	}
@@ -285,7 +294,10 @@ func (r *userHandler) follow(c echo.Context) error {
 }
 
 func (r *userHandler) unfollow(c echo.Context) error {
-	uc := c.(*userContext)
+	em, _, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
 
 	fu, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
@@ -293,7 +305,7 @@ func (r *userHandler) unfollow(c echo.Context) error {
 	}
 
 	err = r.users.UpdateUserByEmail(
-		*uc.email,
+		em,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StopFollowing(fu)
 			return u, nil
@@ -302,7 +314,7 @@ func (r *userHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	found, err := r.users.GetUserByEmail(*uc.email)
+	found, err := r.users.GetUserByEmail(fu.Email())
 	if err != nil {
 		return err
 	}
