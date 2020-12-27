@@ -24,8 +24,8 @@ var ErrRequiredUserFields = errors.New("email, username, and password are requir
 var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 // User is an individual user in the application.
-// A user can be both the current client logged in (usually id'd by username)
-// and also an author of a post or someone to follow.
+// A user can be both the current client logged in (usually id'd by email)
+// and also an proile of someone that is followed (usually id'd by username).
 type User struct {
 	email     string
 	username  string
@@ -35,7 +35,7 @@ type User struct {
 	password  []byte
 }
 
-// NewUserWithPassword creates a new User with the provide information.
+// NewUserWithPassword creates a new partially-hydrated User with the provide information.
 func NewUserWithPassword(email string, username string, password string) (*User, error) {
 	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
 		return nil, ErrRequiredUserFields
@@ -57,7 +57,7 @@ func NewUserWithPassword(email string, username string, password string) (*User,
 	}, nil
 }
 
-// ExistingUser creates a User with the provide information.
+// ExistingUser creates a fully-hydrated User with the provided information.
 func ExistingUser(email string, username string, bio string, image string, following []*User, password PasswordHash) (*User, error) {
 	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
 		return nil, ErrRequiredUserFields
@@ -83,7 +83,7 @@ func ExistingUser(email string, username string, bio string, image string, follo
 	}, nil
 }
 
-// UpdatedUser merged the provided user with the (optional) new values provided.
+// UpdatedUser merges the provided User with the (optional) new values provided.
 func UpdatedUser(user User, email string, username string, bio *string, image *string, password string) (*User, error) {
 	if len(email) > 0 {
 		if !emailRegex.MatchString(email) {
@@ -140,7 +140,7 @@ func (u User) Image() string {
 	return u.image
 }
 
-// Password gets the user's hashed password.
+// Password is the user's hashed password.
 func (u User) Password() PasswordHash {
 	return string(u.password)
 }
@@ -155,7 +155,7 @@ func (u User) FollowingEmails() []string {
 	return es
 }
 
-// HasPassword checks if the provide password string matches the stored hash for the user.
+// HasPassword checks if the provided password string matches the hash for the user.
 func (u *User) HasPassword(password string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(u.password, []byte(password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {

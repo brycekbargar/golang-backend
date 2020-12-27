@@ -1,3 +1,4 @@
+// Package inmemory is an in-memory implementation of the adapters layer.
 package inmemory
 
 import (

@@ -1,3 +1,6 @@
+// Package echohttp is a port into the application.
+// (currently it's the only port and has a bunch of business logic :scream:)
+// It contains a single http server using the Echo library.
 package echohttp
 
 import (
@@ -59,7 +62,7 @@ func Start(
 	})
 
 	api := s.Group("/api")
-	newUserHandler(users, fullAuth, maybeAuth, jc).routes(api)
+	newUsersHandler(users, fullAuth, maybeAuth, jc).mapRoutes(api)
 
 	return s.Start(":" + strconv.Itoa(port))
 }

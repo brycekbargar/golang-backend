@@ -11,19 +11,19 @@ import (
 	"github.com/brycekbargar/realworld-backend/ports"
 )
 
-type userHandler struct {
+type usersHandler struct {
 	users       userdomain.Repository
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
 	jc          ports.JWTConfig
 }
 
-func newUserHandler(
+func newUsersHandler(
 	users userdomain.Repository,
 	authed echo.MiddlewareFunc,
 	maybeAuthed echo.MiddlewareFunc,
-	jc ports.JWTConfig) *userHandler {
-	return &userHandler{
+	jc ports.JWTConfig) *usersHandler {
+	return &usersHandler{
 		users,
 		authed,
 		maybeAuthed,
@@ -31,7 +31,7 @@ func newUserHandler(
 	}
 }
 
-func (r *userHandler) routes(g *echo.Group) {
+func (r *usersHandler) mapRoutes(g *echo.Group) {
 	g.POST("/users", r.create)
 	g.POST("/users/login", r.login)
 	g.GET("/user", r.user, r.authed)
@@ -63,7 +63,7 @@ type registerUser struct {
 	Password string `json:"password"`
 }
 
-func makeJwt(r *userHandler, e string) (string, error) {
+func makeJwt(r *usersHandler, e string) (string, error) {
 	token := jwt.New(r.jc.Method)
 
 	claims := token.Claims.(jwt.MapClaims)
@@ -78,7 +78,7 @@ func makeJwt(r *userHandler, e string) (string, error) {
 	return t, nil
 }
 
-func (r *userHandler) create(c echo.Context) error {
+func (r *usersHandler) create(c echo.Context) error {
 	u := new(register)
 	if err := c.Bind(u); err != nil {
 		return echo.ErrBadRequest
@@ -126,7 +126,7 @@ type loginUser struct {
 	Password string `json:"password"`
 }
 
-func (r *userHandler) login(c echo.Context) error {
+func (r *usersHandler) login(c echo.Context) error {
 	l := new(login)
 	if err := c.Bind(l); err != nil {
 		return echo.ErrBadRequest
@@ -157,7 +157,7 @@ func (r *userHandler) login(c echo.Context) error {
 	})
 }
 
-func (r *userHandler) user(c echo.Context) error {
+func (r *usersHandler) user(c echo.Context) error {
 	em, token, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -182,7 +182,7 @@ func (r *userHandler) user(c echo.Context) error {
 	})
 }
 
-func (r *userHandler) update(c echo.Context) error {
+func (r *usersHandler) update(c echo.Context) error {
 	em, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -244,7 +244,7 @@ type profileUser struct {
 	Following bool   `json:"following"`
 }
 
-func (r *userHandler) profile(c echo.Context) (err error) {
+func (r *usersHandler) profile(c echo.Context) (err error) {
 	em, _, _ := c.(*userContext).identity()
 
 	if len(c.Param("username")) == 0 {
@@ -282,7 +282,7 @@ func (r *userHandler) profile(c echo.Context) (err error) {
 	})
 }
 
-func (r *userHandler) follow(c echo.Context) error {
+func (r *usersHandler) follow(c echo.Context) error {
 	em, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -323,7 +323,7 @@ func (r *userHandler) follow(c echo.Context) error {
 	})
 }
 
-func (r *userHandler) unfollow(c echo.Context) error {
+func (r *usersHandler) unfollow(c echo.Context) error {
 	em, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
