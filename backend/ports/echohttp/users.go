@@ -90,10 +90,17 @@ func (r *userHandler) create(c echo.Context) error {
 		u.User.Password,
 	)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			err)
 	}
 
 	if err := r.users.Create(created); err != nil {
+		if err == userdomain.ErrDuplicateValue {
+			return echo.NewHTTPError(
+				http.StatusBadRequest,
+				err)
+		}
 		return err
 	}
 
@@ -127,7 +134,7 @@ func (r *userHandler) login(c echo.Context) error {
 
 	authed, err := r.users.GetUserByEmail(l.User.Email)
 	if err != nil {
-		return err
+		return echo.ErrUnauthorized
 	}
 
 	if pw, err := authed.HasPassword(l.User.Password); !pw || err != nil {
@@ -158,6 +165,9 @@ func (r *userHandler) user(c echo.Context) error {
 
 	found, err := r.users.GetUserByEmail(em)
 	if err != nil {
+		if err == userdomain.ErrNotFound {
+			return echo.ErrNotFound
+		}
 		return err
 	}
 
@@ -194,12 +204,17 @@ func (r *userHandler) update(c echo.Context) error {
 				*b.User.Password)
 		})
 	if err != nil {
+		if err == userdomain.ErrNotFound {
+			return echo.ErrNotFound
+		}
 		return err
 	}
 
-	found, err := r.users.GetUserByEmail(em)
+	found, err := r.users.GetUserByEmail(b.User.Email)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			"couldn't find the user after update")
 	}
 
 	// Users can change their email so we need to make sure we're giving them a new token.
@@ -232,8 +247,15 @@ type profileUser struct {
 func (r *userHandler) profile(c echo.Context) (err error) {
 	em, _, _ := c.(*userContext).identity()
 
+	if len(c.Param("username")) == 0 {
+		return echo.ErrBadRequest
+	}
+
 	found, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
+		if err == userdomain.ErrNotFound {
+			return echo.ErrNotFound
+		}
 		return err
 	}
 
@@ -241,6 +263,9 @@ func (r *userHandler) profile(c echo.Context) (err error) {
 	if len(em) > 0 {
 		cu, err := r.users.GetUserByEmail(em)
 		if err != nil {
+			if err == userdomain.ErrNotFound {
+				return echo.ErrNotFound
+			}
 			return err
 		}
 
@@ -263,8 +288,15 @@ func (r *userHandler) follow(c echo.Context) error {
 		return identityNotOk
 	}
 
+	if len(c.Param("username")) == 0 {
+		return echo.ErrBadRequest
+	}
+
 	fu, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
+		if err == userdomain.ErrNotFound {
+			return echo.ErrNotFound
+		}
 		return err
 	}
 
@@ -275,20 +307,18 @@ func (r *userHandler) follow(c echo.Context) error {
 			return u, nil
 		})
 	if err != nil {
-		return err
-	}
-
-	found, err := r.users.GetUserByEmail(fu.Email())
-	if err != nil {
+		if err == userdomain.ErrNotFound {
+			return echo.ErrNotFound
+		}
 		return err
 	}
 
 	return c.JSON(http.StatusOK, profile{
 		profileUser{
-			Username:  found.Username(),
-			Bio:       found.Bio(),
-			Image:     found.Image(),
-			Following: found.IsFollowing(fu),
+			Username:  fu.Username(),
+			Bio:       fu.Bio(),
+			Image:     fu.Image(),
+			Following: true,
 		},
 	})
 }
@@ -299,8 +329,15 @@ func (r *userHandler) unfollow(c echo.Context) error {
 		return identityNotOk
 	}
 
+	if len(c.Param("username")) == 0 {
+		return echo.ErrBadRequest
+	}
+
 	fu, err := r.users.GetUserByUsername(c.Param("username"))
 	if err != nil {
+		if err == userdomain.ErrNotFound {
+			return echo.ErrNotFound
+		}
 		return err
 	}
 
@@ -311,20 +348,18 @@ func (r *userHandler) unfollow(c echo.Context) error {
 			return u, nil
 		})
 	if err != nil {
-		return err
-	}
-
-	found, err := r.users.GetUserByEmail(fu.Email())
-	if err != nil {
+		if err == userdomain.ErrNotFound {
+			return echo.ErrNotFound
+		}
 		return err
 	}
 
 	return c.JSON(http.StatusOK, profile{
 		profileUser{
-			Username:  found.Username(),
-			Bio:       found.Bio(),
-			Image:     found.Image(),
-			Following: found.IsFollowing(fu),
+			Username:  fu.Username(),
+			Bio:       fu.Bio(),
+			Image:     fu.Image(),
+			Following: false,
 		},
 	})
 }

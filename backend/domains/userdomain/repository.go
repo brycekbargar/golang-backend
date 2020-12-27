@@ -6,7 +6,7 @@ import "errors"
 var ErrNotFound = errors.New("user not found")
 
 // ErrDuplicateValue indicates the requested user could not be created because they already exist.
-var ErrDuplicateValue = errors.New("created user has a duplicate username or email address")
+var ErrDuplicateValue = errors.New("user has a duplicate username or email address")
 
 // Repository allows performing abstracted I/O operations on users.
 type Repository interface {
