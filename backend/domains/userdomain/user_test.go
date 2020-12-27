@@ -13,52 +13,52 @@ func usersFixture(t *testing.T) []*userdomain.User {
 	t.Helper()
 	f := make([]*userdomain.User, 4)
 
-	pu, err := userdomain.NewUserWithPassword("n/a", "n/a", "comprehensive password")
+	pu, err := userdomain.NewUserWithPassword("na@anything.com", "n/a", "comprehensive password")
 	require.NoError(t, err)
 	u, err := userdomain.ExistingUser(
 		"user@comprehensive.com",
 		"comprehensive username",
 		"comprehensive bio",
-		"comprehensive image",
+		"http://comprehensive.com/image.png",
 		nil,
 		pu.Password(),
 	)
 	require.NoError(t, err)
 	f[0] = u
 
-	pu, err = userdomain.NewUserWithPassword("n/a", "n/a", "limping password")
+	pu, err = userdomain.NewUserWithPassword("na@anything.com", "n/a", "limping password")
 	require.NoError(t, err)
 	u, err = userdomain.ExistingUser(
 		"user@limping.com",
 		"limping username",
 		"limping bio",
-		"limping image",
+		"http://limping.com/image.png",
 		nil,
 		pu.Password(),
 	)
 	require.NoError(t, err)
 	f[1] = u
 
-	pu, err = userdomain.NewUserWithPassword("n/a", "n/a", "public password")
+	pu, err = userdomain.NewUserWithPassword("na@anything.com", "n/a", "public password")
 	require.NoError(t, err)
 	u, err = userdomain.ExistingUser(
 		"user@public.com",
 		"public username",
 		"public bio",
-		"public image",
+		"http://public.com/image.png",
 		nil,
 		pu.Password(),
 	)
 	require.NoError(t, err)
 	f[2] = u
 
-	pu, err = userdomain.NewUserWithPassword("n/a", "n/a", "jaded password")
+	pu, err = userdomain.NewUserWithPassword("na@anything.com", "n/a", "jaded password")
 	require.NoError(t, err)
 	u, err = userdomain.ExistingUser(
 		"user@jaded.com",
 		"jaded username",
 		"jaded bio",
-		"jaded image",
+		"http://jaded.com/image.png",
 		nil,
 		pu.Password(),
 	)
@@ -87,25 +87,32 @@ func TestNewUserWithPassword(t *testing.T) {
 			nil,
 		},
 		{
+			"Invalid Email",
+			"definitely not an email",
+			f[0].Username(),
+			f[0].Password(),
+			userdomain.ErrInvalidEmail,
+		},
+		{
 			"Missing Email",
 			"",
 			f[0].Username(),
 			f[0].Password(),
-			userdomain.ErrorRequiredUserFields,
+			userdomain.ErrRequiredUserFields,
 		},
 		{
 			"Missing Username",
 			f[0].Email(),
 			"",
 			f[0].Password(),
-			userdomain.ErrorRequiredUserFields,
+			userdomain.ErrRequiredUserFields,
 		},
 		{
 			"Missing Password",
 			f[0].Email(),
 			f[0].Username(),
 			"",
-			userdomain.ErrorRequiredUserFields,
+			userdomain.ErrRequiredUserFields,
 		},
 	}
 
@@ -160,13 +167,22 @@ func TestExistingUser(t *testing.T) {
 			nil,
 		},
 		{
+			"Invalid Email",
+			"definitely not an email",
+			f[0].Username(),
+			f[0].Bio(),
+			f[0].Image(),
+			f[0].Password(),
+			userdomain.ErrInvalidEmail,
+		},
+		{
 			"Missing Email",
 			"",
 			f[0].Username(),
 			f[0].Bio(),
 			f[0].Image(),
 			f[0].Password(),
-			userdomain.ErrorRequiredUserFields,
+			userdomain.ErrRequiredUserFields,
 		},
 		{
 			"Missing Username",
@@ -175,7 +191,7 @@ func TestExistingUser(t *testing.T) {
 			f[0].Bio(),
 			f[0].Image(),
 			f[0].Password(),
-			userdomain.ErrorRequiredUserFields,
+			userdomain.ErrRequiredUserFields,
 		},
 		{
 			"Missing Password",
@@ -184,7 +200,16 @@ func TestExistingUser(t *testing.T) {
 			f[0].Bio(),
 			f[0].Image(),
 			"",
-			userdomain.ErrorRequiredUserFields,
+			userdomain.ErrRequiredUserFields,
+		},
+		{
+			"Invalid Image",
+			f[0].Email(),
+			f[0].Username(),
+			f[0].Bio(),
+			"definitely not an image",
+			f[0].Password(),
+			userdomain.ErrInvalidImage,
 		},
 	}
 
@@ -196,15 +221,16 @@ func TestExistingUser(t *testing.T) {
 			u, err := userdomain.ExistingUser(tc.Email, tc.Username, tc.Bio, tc.Image, nil, tc.Password)
 			if tc.ExpectedError != nil {
 				assert.EqualError(t, err, tc.ExpectedError.Error())
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tc.Email, u.Email())
-				assert.Equal(t, tc.Username, u.Username())
-				assert.Equal(t, tc.Bio, u.Bio())
-				assert.Equal(t, tc.Image, u.Image())
-				assert.NotNil(t, u.FollowingEmails()) // More thorough tests are elsewhere
-				assert.Equal(t, tc.Password, u.Password())
+				return
 			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.Email, u.Email())
+			assert.Equal(t, tc.Username, u.Username())
+			assert.Equal(t, tc.Bio, u.Bio())
+			assert.Equal(t, tc.Image, u.Image())
+			assert.NotNil(t, u.FollowingEmails()) // More thorough tests are elsewhere
+			assert.Equal(t, tc.Password, u.Password())
 		})
 	}
 }
@@ -225,6 +251,7 @@ func TestUpdated_User(t *testing.T) {
 		ExpectedImage    string
 		UpdatedPassword  string
 		ExpectedPassword string
+		ExpectedError    error
 	}{
 		{
 			"All New Values",
@@ -234,10 +261,11 @@ func TestUpdated_User(t *testing.T) {
 			"spotless username",
 			optional("spotless bio"),
 			"spotless bio",
-			optional("spotless image"),
-			"spotless image",
+			optional("http://spotless.com/image"),
+			"http://spotless.com/image",
 			"spotless password",
 			"spotless password",
+			nil,
 		},
 		{
 			"No New Values",
@@ -251,11 +279,40 @@ func TestUpdated_User(t *testing.T) {
 			f[3].Image(),
 			"",
 			"jaded password",
+			nil,
+		},
+		{
+			"Invalid email",
+			"definitely not an email",
+			"na@anything.com",
+			"n/a",
+			"n/a",
+			nil,
+			"n/a",
+			nil,
+			"n/a",
+			"n/a",
+			"n/a",
+			userdomain.ErrInvalidEmail,
 		},
 		{
 			"Empty image and bio",
+			"na@anything.com",
+			"na@anything.com",
 			"n/a",
 			"n/a",
+			nil,
+			"n/a",
+			optional("definitely not an image"),
+			"n/a",
+			"n/a",
+			"n/a",
+			userdomain.ErrInvalidImage,
+		},
+		{
+			"Empty image and bio",
+			"na@anything.com",
+			"na@anything.com",
 			"n/a",
 			"n/a",
 			optional(""),
@@ -264,6 +321,7 @@ func TestUpdated_User(t *testing.T) {
 			"",
 			"n/a",
 			"n/a",
+			nil,
 		},
 	}
 
@@ -280,6 +338,10 @@ func TestUpdated_User(t *testing.T) {
 				tc.UpdatedBio,
 				tc.UpdatedImage,
 				tc.UpdatedPassword)
+			if tc.ExpectedError != nil {
+				require.EqualError(t, err, tc.ExpectedError.Error())
+				return
+			}
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.ExpectedEmail, u.Email())

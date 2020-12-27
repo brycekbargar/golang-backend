@@ -2,6 +2,8 @@ package userdomain
 
 import (
 	"errors"
+	"net/url"
+	"regexp"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -9,8 +11,17 @@ import (
 // PasswordHash is an indicator that a string is a bcrypt hashed value.
 type PasswordHash = string
 
-// ErrorRequiredUserFields indicates when a NewUser is instantiated without all the required fields.
-var ErrorRequiredUserFields = errors.New("email, username, and password are required for users")
+// ErrInvalidEmail indicates when a User is instantiated with an invalid email.
+var ErrInvalidEmail = errors.New("email must be a valid email")
+
+// ErrInvalidImage indicates when a User is instantiated with an invalid image url.
+var ErrInvalidImage = errors.New("image must be a valid url")
+
+// ErrRequiredUserFields indicates when a User is instantiated without all the required fields.
+var ErrRequiredUserFields = errors.New("email, username, and password are required for users")
+
+// https://golangcode.com/validate-an-email-address/
+var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 // User is an individual user in the application.
 // A user can be both the current client logged in (usually id'd by username)
@@ -27,7 +38,11 @@ type User struct {
 // NewUserWithPassword creates a new User with the provide information.
 func NewUserWithPassword(email string, username string, password string) (*User, error) {
 	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
-		return nil, ErrorRequiredUserFields
+		return nil, ErrRequiredUserFields
+	}
+
+	if !emailRegex.MatchString(email) {
+		return nil, ErrInvalidEmail
 	}
 
 	pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -45,7 +60,17 @@ func NewUserWithPassword(email string, username string, password string) (*User,
 // ExistingUser creates a User with the provide information.
 func ExistingUser(email string, username string, bio string, image string, following []*User, password PasswordHash) (*User, error) {
 	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
-		return nil, ErrorRequiredUserFields
+		return nil, ErrRequiredUserFields
+	}
+
+	if !emailRegex.MatchString(email) {
+		return nil, ErrInvalidEmail
+	}
+
+	if len(image) > 0 {
+		if _, err := url.ParseRequestURI(image); err != nil {
+			return nil, ErrInvalidImage
+		}
 	}
 
 	return &User{
@@ -61,6 +86,9 @@ func ExistingUser(email string, username string, bio string, image string, follo
 // UpdatedUser merged the provided user with the (optional) new values provided.
 func UpdatedUser(user User, email string, username string, bio *string, image *string, password string) (*User, error) {
 	if len(email) > 0 {
+		if !emailRegex.MatchString(email) {
+			return nil, ErrInvalidEmail
+		}
 		user.email = email
 	}
 	if len(username) > 0 {
@@ -70,6 +98,11 @@ func UpdatedUser(user User, email string, username string, bio *string, image *s
 		user.bio = *bio
 	}
 	if image != nil {
+		if len(*image) > 0 {
+			if _, err := url.ParseRequestURI(*image); err != nil {
+				return nil, ErrInvalidImage
+			}
+		}
 		user.image = *image
 	}
 	if len(password) > 0 {
