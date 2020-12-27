@@ -113,6 +113,10 @@ func UpdatedUser(user User, email string, username string, bio *string, image *s
 		user.password = pw
 	}
 
+	f := make([]*User, len(user.following))
+	copy(f, user.following)
+	user.following = f
+
 	return &user, nil
 }
 

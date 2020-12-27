@@ -296,7 +296,7 @@ func TestUpdated_User(t *testing.T) {
 			userdomain.ErrInvalidEmail,
 		},
 		{
-			"Empty image and bio",
+			"Invalid image",
 			"na@anything.com",
 			"na@anything.com",
 			"n/a",
