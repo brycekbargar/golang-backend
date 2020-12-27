@@ -91,3 +91,70 @@ func TestCreate_DuplicateUser(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateUserByEmail(t *testing.T) {
+	t.Parallel()
+	f := userdomain.Fixture
+
+	for k, r := range subjects {
+		r := r
+		t.Run(k, func(t *testing.T) {
+			for _, u := range f {
+				err := r.Create(u)
+				require.NoError(t, err)
+			}
+			t.Parallel()
+
+			err := r.UpdateUserByEmail("user@grumpy.com",
+				func(u *userdomain.User) (*userdomain.User, error) {
+					return u, nil
+				})
+			require.EqualError(t, err, userdomain.ErrNotFound.Error())
+
+			err = r.UpdateUserByEmail(f[0].Email(),
+				func(u *userdomain.User) (*userdomain.User, error) {
+					return userdomain.ExistingUser(
+						"user@aback.com",
+						"aback username",
+						"",
+						"",
+						[]*userdomain.User{
+							f[1],
+							f[2],
+						},
+						f[0].Password(),
+					)
+				})
+			require.NoError(t, err)
+
+			u, err := r.GetUserByEmail("user@aback.com")
+			assert.NoError(t, err, "because a user was updated to this email")
+			_, err = r.GetUserByUsername("aback username")
+			assert.NoError(t, err, "because a user was updated to this username")
+			_, err = r.GetUserByEmail(f[0].Email())
+			assert.EqualError(t, err, userdomain.ErrNotFound.Error(),
+				"because this user's email was updated")
+			_, err = r.GetUserByUsername(f[0].Username())
+			assert.EqualError(t, err, userdomain.ErrNotFound.Error(),
+				"because this user's username was updated")
+
+			assert.Len(t, u.FollowingEmails(), 2)
+			assert.Contains(t, u.FollowingEmails(), f[1].Email())
+			assert.Contains(t, u.FollowingEmails(), f[2].Email())
+
+			err = r.UpdateUserByEmail(f[1].Email(),
+				func(u *userdomain.User) (*userdomain.User, error) {
+					nu, err := userdomain.NewUserWithPassword(
+						"user@squealing.com",
+						"squealing username",
+						"squealing password")
+					require.NoError(t, err)
+
+					u.StartFollowing(nu)
+					return u, nil
+				})
+			require.EqualError(t, err, userdomain.ErrNotFound.Error(),
+				"because followed users must exist")
+		})
+	}
+}
