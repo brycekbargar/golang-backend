@@ -2,10 +2,10 @@ package userdomain
 
 import "errors"
 
-// ErrorNotFound indicates the requested user was not found.
+// ErrNotFound indicates the requested user was not found.
 var ErrNotFound = errors.New("user not found")
 
-// ErrorDuplicateValue indicates the requested user could not be created because they already exist.
+// ErrDuplicateValue indicates the requested user could not be created because they already exist.
 var ErrDuplicateValue = errors.New("created user has a duplicate username or email address")
 
 // Repository allows performing abstracted I/O operations on users.

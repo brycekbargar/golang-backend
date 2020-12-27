@@ -9,68 +9,9 @@ import (
 	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 )
 
-func usersFixture(t *testing.T) []*userdomain.User {
-	t.Helper()
-	f := make([]*userdomain.User, 4)
-
-	pu, err := userdomain.NewUserWithPassword("na@anything.com", "n/a", "comprehensive password")
-	require.NoError(t, err)
-	u, err := userdomain.ExistingUser(
-		"user@comprehensive.com",
-		"comprehensive username",
-		"comprehensive bio",
-		"http://comprehensive.com/image.png",
-		nil,
-		pu.Password(),
-	)
-	require.NoError(t, err)
-	f[0] = u
-
-	pu, err = userdomain.NewUserWithPassword("na@anything.com", "n/a", "limping password")
-	require.NoError(t, err)
-	u, err = userdomain.ExistingUser(
-		"user@limping.com",
-		"limping username",
-		"limping bio",
-		"http://limping.com/image.png",
-		nil,
-		pu.Password(),
-	)
-	require.NoError(t, err)
-	f[1] = u
-
-	pu, err = userdomain.NewUserWithPassword("na@anything.com", "n/a", "public password")
-	require.NoError(t, err)
-	u, err = userdomain.ExistingUser(
-		"user@public.com",
-		"public username",
-		"public bio",
-		"http://public.com/image.png",
-		nil,
-		pu.Password(),
-	)
-	require.NoError(t, err)
-	f[2] = u
-
-	pu, err = userdomain.NewUserWithPassword("na@anything.com", "n/a", "jaded password")
-	require.NoError(t, err)
-	u, err = userdomain.ExistingUser(
-		"user@jaded.com",
-		"jaded username",
-		"jaded bio",
-		"http://jaded.com/image.png",
-		nil,
-		pu.Password(),
-	)
-	require.NoError(t, err)
-	f[3] = u
-
-	return f
-}
-
 func TestNewUserWithPassword(t *testing.T) {
 	t.Parallel()
-	f := usersFixture(t)
+	f := userdomain.Fixture
 
 	cases := []struct {
 		Name          string
@@ -137,7 +78,7 @@ func TestNewUserWithPassword(t *testing.T) {
 
 func TestExistingUser(t *testing.T) {
 	t.Parallel()
-	f := usersFixture(t)
+	f := userdomain.Fixture
 
 	cases := []struct {
 		Name          string
@@ -237,7 +178,7 @@ func TestExistingUser(t *testing.T) {
 
 func TestUpdated_User(t *testing.T) {
 	t.Parallel()
-	f := usersFixture(t)
+	f := userdomain.Fixture
 
 	cases := []struct {
 		Name             string
@@ -278,7 +219,7 @@ func TestUpdated_User(t *testing.T) {
 			nil,
 			f[3].Image(),
 			"",
-			"jaded password",
+			"Test1234!",
 			nil,
 		},
 		{
@@ -392,7 +333,7 @@ func TestHasPassword(t *testing.T) {
 
 func TestUser_Following(t *testing.T) {
 	t.Parallel()
-	f := usersFixture(t)
+	f := userdomain.Fixture
 
 	u, err := userdomain.ExistingUser(
 		f[0].Email(),
