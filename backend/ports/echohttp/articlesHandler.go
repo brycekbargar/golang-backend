@@ -4,8 +4,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gosimple/slug"
 	"github.com/labstack/echo/v4"
 )
+
+func init() {
+	slug.CustomSub["feed"] = "f"
+}
 
 type articlesHandler struct {
 	authed      echo.MiddlewareFunc
