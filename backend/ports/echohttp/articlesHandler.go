@@ -28,6 +28,8 @@ func newArticlesHandler(
 
 func (r *articlesHandler) mapRoutes(g *echo.Group) {
 	g.GET("/articles", r.list, r.maybeAuthed)
+	g.GET("/articles/feed", r.feed, r.authed)
+	g.GET("/articles/:slug", r.article, r.maybeAuthed)
 }
 
 type author struct {
@@ -37,7 +39,7 @@ type author struct {
 	Following bool   `json:"following"`
 }
 
-type article struct {
+type articleArticle struct {
 	Slug           string    `json:"slug"`
 	Title          string    `json:"title"`
 	Description    string    `json:"description"`
@@ -51,8 +53,8 @@ type article struct {
 }
 
 type list struct {
-	Articles      []article `json:"articles"`
-	ArticlesCount int       `json:"articlesCount"`
+	Articles      []articleArticle `json:"articles"`
+	ArticlesCount int              `json:"articlesCount"`
 }
 
 func (r *articlesHandler) list(c echo.Context) error {
@@ -64,7 +66,36 @@ func (r *articlesHandler) list(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, list{
-		make([]article, 0),
+		make([]articleArticle, 0),
 		0,
 	})
+}
+
+func (r *articlesHandler) feed(c echo.Context) error {
+	_, _, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
+
+	// Get the feed articles
+
+	return c.JSON(http.StatusOK, list{
+		make([]articleArticle, 0),
+		0,
+	})
+}
+
+type article struct {
+	Article articleArticle `json:"article"`
+}
+
+func (r *articlesHandler) article(c echo.Context) error {
+	em, _, _ := c.(*userContext).identity()
+
+	// get the article
+	if len(em) > 0 {
+		// set the following/favorited logic?
+	}
+
+	return c.JSON(http.StatusOK, article{})
 }
