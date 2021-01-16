@@ -63,6 +63,7 @@ func Start(
 
 	api := s.Group("/api")
 	newUsersHandler(users, fullAuth, maybeAuth, jc).mapRoutes(api)
+	newArticlesHandler(fullAuth, maybeAuth, jc).mapRoutes(api)
 
 	return s.Start(":" + strconv.Itoa(port))
 }
