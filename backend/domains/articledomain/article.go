@@ -8,7 +8,7 @@ import (
 )
 
 // ErrRequiredArticleFields indicates when an Article is instantiated without all the required fields.
-var ErrRequiredArticleFields = errors.New("slug, title, description, body, and author are required for users")
+var ErrRequiredArticleFields = errors.New("slug, title, description, body, and author are required for articles")
 
 // ErrInvalidSlug indicates when an Article is instantiated with an invalid slug.
 var ErrInvalidSlug = errors.New("slug must be a valid slug")
@@ -122,7 +122,7 @@ func (a Article) CreatedAtUTC() time.Time {
 	return a.createdAtUTC
 }
 
-// UpdatedAtUTC is the system generated time (in utc) when the article was last updeted created.
+// UpdatedAtUTC is the system generated time (in utc) when the article was last updated.
 func (a Article) UpdatedAtUTC() time.Time {
 	return a.updatedAtUTC
 }
