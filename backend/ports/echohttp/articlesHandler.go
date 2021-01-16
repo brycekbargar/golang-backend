@@ -30,6 +30,10 @@ func (r *articlesHandler) mapRoutes(g *echo.Group) {
 	g.GET("/articles", r.list, r.maybeAuthed)
 	g.GET("/articles/feed", r.feed, r.authed)
 	g.GET("/articles/:slug", r.article, r.maybeAuthed)
+
+	g.POST("/articles", r.create, r.authed)
+	g.PUT("/articles/:slug", r.update, r.authed)
+	g.DELETE("/articles/:slug", r.delete, r.authed)
 }
 
 type author struct {
@@ -98,4 +102,57 @@ func (r *articlesHandler) article(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, article{})
+}
+
+type createArticle struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Body        string   `json:"body"`
+	TagList     []string `json:"tagList,omitempty"`
+}
+type create struct {
+	Article articleArticle `json:"article"`
+}
+
+func (r *articlesHandler) create(c echo.Context) error {
+	_, _, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
+
+	a := new(create)
+	if err := c.Bind(a); err != nil {
+		return echo.ErrBadRequest
+	}
+
+	// Make the thing
+
+	return c.JSON(http.StatusCreated, article{})
+}
+
+func (r *articlesHandler) update(c echo.Context) error {
+	_, _, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
+
+	a := new(create)
+	if err := c.Bind(a); err != nil {
+		return echo.ErrBadRequest
+	}
+
+	// Update the thing
+
+	return c.JSON(http.StatusOK, article{})
+}
+
+func (r *articlesHandler) delete(c echo.Context) error {
+	_, _, ok := c.(*userContext).identity()
+	if !ok {
+		return identityNotOk
+	}
+
+	// Delete the thing
+
+	return c.NoContent(http.StatusOK)
 }
