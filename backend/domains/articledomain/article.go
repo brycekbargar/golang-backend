@@ -2,6 +2,7 @@ package articledomain
 
 import (
 	"errors"
+	"sort"
 	"time"
 
 	id "github.com/gosimple/slug"
@@ -23,6 +24,7 @@ type Article struct {
 	createdAtUTC time.Time
 	updatedAtUTC time.Time
 	author       string
+	comments     []*Comment
 }
 
 // NewArticle creates a new Article with the provided information and defaults for the rest.
@@ -45,11 +47,12 @@ func NewArticle(title string, description string, body string, authorEmail strin
 		time.Now().UTC(),
 		time.Now().UTC(),
 		authorEmail,
+		make([]*Comment, 0),
 	}, nil
 }
 
 // ExistingArticle creates an Article with the provided information.
-func ExistingArticle(slug string, title string, description string, body string, createdAt time.Time, updatedAt time.Time, authorEmail string, tags ...string) (*Article, error) {
+func ExistingArticle(slug string, title string, description string, body string, createdAt time.Time, updatedAt time.Time, authorEmail string, comments []*Comment, tags ...string) (*Article, error) {
 	if len(slug) == 0 ||
 		len(title) == 0 ||
 		len(description) == 0 ||
@@ -71,6 +74,7 @@ func ExistingArticle(slug string, title string, description string, body string,
 		createdAt,
 		updatedAt,
 		authorEmail,
+		comments,
 	}, nil
 }
 
@@ -137,4 +141,46 @@ func (a Article) Tags() []string {
 	ts := make([]string, 0, len(a.tagList))
 	copy(ts, a.tagList)
 	return ts
+}
+
+// Comments is the slice of comments associated with the Article sorted in the order they were created.
+func (a Article) Comments() []*Comment {
+	cs := make([]*Comment, 0, len(a.comments))
+	copy(cs, a.comments)
+	sort.SliceStable(cs, func(i, j int) bool {
+		return cs[i].createdAtUTC.Before(cs[j].createdAtUTC)
+	})
+	return cs
+}
+
+// AddComment creates a new comment and adds it to this Article.
+func (a *Article) AddComment(body string, authorEmail string) (*Comment, error) {
+	id := 1
+	for _, c := range a.comments {
+		if c.id >= id {
+			id = c.id + 1
+		}
+	}
+
+	c, err := newComment(id, body, authorEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	a.comments = append(a.comments, c)
+	return c, nil
+}
+
+// RemoveComment removes the comment (if it exists by id) from this Article.
+func (a *Article) RemoveComment(id int) {
+	if id == 0 {
+		return
+	}
+
+	for i, c := range a.comments {
+		if c.id == id {
+			a.comments = append(a.comments[:i], a.comments[i+1:]...)
+			return
+		}
+	}
 }

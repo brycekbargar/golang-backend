@@ -203,6 +203,7 @@ func (u *User) StopFollowing(su *User) {
 	for i, f := range u.following {
 		if f.email == su.email {
 			u.following = append(u.following[:i], u.following[i+1:]...)
+			return
 		}
 	}
 }
