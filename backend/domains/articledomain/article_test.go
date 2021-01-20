@@ -92,6 +92,7 @@ func TestNewArticle(t *testing.T) {
 			assert.Equal(t, tc.Title, a.Title())
 			assert.Equal(t, tc.Description, a.Description())
 			assert.Equal(t, tc.Body, a.Body())
+			assert.Equal(t, tc.Tags, a.Tags())
 			assert.NotEmpty(t, a.CreatedAtUTC())
 			assert.Equal(t, a.UpdatedAtUTC(), a.CreatedAtUTC())
 			require.NotEmpty(t, a.Slug())
@@ -176,4 +177,33 @@ func TestUpdateArticle(t *testing.T) {
 				"because the original should be unmodified during update")
 		})
 	}
+}
+
+func TestAddComment(t *testing.T) {
+	t.Parallel()
+	f := articledomain.Fixture
+	c, err := f[0].AddComment("mysterious comment", "mysterious author")
+
+	require.NoError(t, err)
+	assert.Equal(t, 7, c.ID()) // the last comment in this fixture'd article has id 6
+
+	assert.Equal(t, 2, len(f[0].Comments()))
+	for _, c := range f[0].Comments() {
+		if c.ID() == 7 {
+			assert.Equal(t, "mysterious comment", c.Body())
+			assert.Equal(t, "mysterious author", c.AuthorEmail())
+			assert.NotEmpty(t, c.CreatedAtUTC())
+			assert.Equal(t, c.UpdatedAtUTC(), c.CreatedAtUTC())
+			return
+		}
+	}
+
+	assert.Fail(t, "because created comment wasn't found")
+}
+
+func TestRemoveComment(t *testing.T) {
+	t.Parallel()
+	f := articledomain.Fixture
+	f[1].RemoveComment(4)
+	assert.Equal(t, 2, len(f[1].Comments()))
 }

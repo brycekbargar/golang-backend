@@ -26,7 +26,7 @@ var Fixture = []*Article{
 		"periodic author",
 		[]*Comment{
 			{
-				1,
+				6,
 				"periodic brawny comment body",
 				time.Now(),
 				"periodic brawny comment author",

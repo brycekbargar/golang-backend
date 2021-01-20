@@ -2,7 +2,6 @@ package articledomain
 
 import (
 	"errors"
-	"sort"
 	"time"
 
 	id "github.com/gosimple/slug"
@@ -146,11 +145,8 @@ func (a Article) Tags() []string {
 
 // Comments is the slice of comments associated with the Article sorted in the order they were created.
 func (a Article) Comments() []*Comment {
-	cs := make([]*Comment, 0, len(a.comments))
+	cs := make([]*Comment, len(a.comments))
 	copy(cs, a.comments)
-	sort.SliceStable(cs, func(i, j int) bool {
-		return cs[i].createdAtUTC.Before(cs[j].createdAtUTC)
-	})
 	return cs
 }
 

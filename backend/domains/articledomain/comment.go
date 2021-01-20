@@ -54,14 +54,14 @@ func (c Comment) Body() string {
 }
 
 // CreatedAtUTC is the system generated time (in utc) when the comment was created.
-func (c Comment) CreatedAtUTC() string {
-	return c.CreatedAtUTC()
+func (c Comment) CreatedAtUTC() time.Time {
+	return c.createdAtUTC
 }
 
 // UpdatedAtUTC is the system generated time (in utc) when the article was last updated.
 // Currently updating comments isn't supported so this will always be the CreateAtUTC time.
-func (c Comment) UpdatedAtUTC() string {
-	return c.CreatedAtUTC()
+func (c Comment) UpdatedAtUTC() time.Time {
+	return c.createdAtUTC
 }
 
 // AuthorEmail is the email (the identifier) of the user that created the Comment.
