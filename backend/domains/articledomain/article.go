@@ -38,14 +38,15 @@ func NewArticle(title string, description string, body string, authorEmail strin
 		return nil, ErrInvalidSlug
 	}
 
+	now := time.Now().UTC()
 	return &Article{
 		slug,
 		title,
 		description,
 		body,
 		tags,
-		time.Now().UTC(),
-		time.Now().UTC(),
+		now,
+		now,
 		authorEmail,
 		make([]*Comment, 0),
 	}, nil

@@ -1,6 +1,6 @@
 // Package userdomain represents the Model for Users. This includes IAM and Profiles.
 // Notably this doesn't include Authorship of articles.
-// In this simple implementation there are going to be a couple of hack to share the userdomain models with the articlesdomain.
+// In this simple implementation there are going to be a couple of hacks to share the userdomain models with the articlesdomain.
 // In a real application there should be some sort of published event to make sure the authors/commentors on articles are in sync.
 // Also, in a real application writing IAM from scratch seems real bad.
 // The Profiles "domain" is lumped in here because there are only a couple of profile related actions.
