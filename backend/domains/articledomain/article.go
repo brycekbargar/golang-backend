@@ -24,6 +24,7 @@ type Article struct {
 	updatedAtUTC time.Time
 	author       string
 	comments     []*Comment
+	favoritedBy  map[string]interface{}
 }
 
 // NewArticle creates a new Article with the provided information and defaults for the rest.
@@ -48,11 +49,12 @@ func NewArticle(title string, description string, body string, authorEmail strin
 		now,
 		authorEmail,
 		make([]*Comment, 0),
+		make(map[string]interface{}),
 	}, nil
 }
 
 // ExistingArticle creates an Article with the provided information.
-func ExistingArticle(slug string, title string, description string, body string, createdAt time.Time, updatedAt time.Time, authorEmail string, comments []*Comment, tags ...string) (*Article, error) {
+func ExistingArticle(slug string, title string, description string, body string, tags []string, createdAt time.Time, updatedAt time.Time, authorEmail string, comments []*Comment, favoritedBy []string) (*Article, error) {
 	if len(slug) == 0 ||
 		len(title) == 0 ||
 		len(description) == 0 ||
@@ -65,6 +67,11 @@ func ExistingArticle(slug string, title string, description string, body string,
 		return nil, ErrInvalidSlug
 	}
 
+	favs := make(map[string]interface{})
+	for _, f := range favoritedBy {
+		favs[f] = nil
+	}
+
 	return &Article{
 		slug,
 		title,
@@ -75,6 +82,7 @@ func ExistingArticle(slug string, title string, description string, body string,
 		updatedAt,
 		authorEmail,
 		comments,
+		favs,
 	}, nil
 }
 
@@ -136,6 +144,11 @@ func (a Article) AuthorEmail() string {
 	return a.author
 }
 
+// FavoriteCount is the number of users that have Favorited this Article.
+func (a Article) FavoriteCount() int {
+	return len(a.favoritedBy)
+}
+
 // Tags is the slice of tags associated with the Article on creation.
 func (a Article) Tags() []string {
 	ts := make([]string, 0, len(a.tagList))
@@ -180,4 +193,20 @@ func (a *Article) RemoveComment(id int) {
 			return
 		}
 	}
+}
+
+// IsAFavoriteOf checks to see if the given userEmail has favorited this article.
+func (a *Article) IsAFavoriteOf(userEmail string) (ok bool) {
+	_, ok = a.favoritedBy[userEmail]
+	return
+}
+
+// Favorite marks this Article as a favorite of the given userEmail.
+func (a *Article) Favorite(userEmail string) {
+	a.favoritedBy[userEmail] = nil
+}
+
+// Unfavorite marks this Article as a no longer a favorite of the given userEmail.
+func (a *Article) Unfavorite(userEmail string) {
+	delete(a.favoritedBy, userEmail)
 }

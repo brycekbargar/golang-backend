@@ -32,6 +32,11 @@ var Fixture = []*Article{
 				"periodic brawny comment author",
 			},
 		},
+		map[string]interface{}{
+			"periodic@parched.com":     nil,
+			"periodic@naive.com":       nil,
+			"periodic@traditional.com": nil,
+		},
 	},
 	{
 		"complex-slug",
@@ -62,6 +67,11 @@ var Fixture = []*Article{
 				"complex unbiased comment author",
 			},
 		},
+		map[string]interface{}{
+			"complex@parched.com":     nil,
+			"complex@naive.com":       nil,
+			"complex@traditional.com": nil,
+		},
 	},
 	{
 		"fearful-slug",
@@ -76,5 +86,10 @@ var Fixture = []*Article{
 		fearfulNow,
 		"fearful author",
 		make([]*Comment, 0),
+		map[string]interface{}{
+			"fearful@parched.com":     nil,
+			"fearful@naive.com":       nil,
+			"fearful@traditional.com": nil,
+		},
 	},
 }

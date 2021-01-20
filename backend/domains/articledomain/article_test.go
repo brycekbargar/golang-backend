@@ -207,3 +207,16 @@ func TestRemoveComment(t *testing.T) {
 	f[1].RemoveComment(4)
 	assert.Equal(t, 2, len(f[1].Comments()))
 }
+
+func TestIsFavoriteOf(t *testing.T) {
+	t.Parallel()
+
+	f := articledomain.Fixture
+	assert.True(t, f[1].IsAFavoriteOf("complex@parched.com"))
+	f[1].Unfavorite("complex@parched.com")
+	assert.False(t, f[1].IsAFavoriteOf("complex@parched.com"))
+	assert.Equal(t, 2, f[1].FavoriteCount())
+	f[1].Favorite("lucky@unsuitable.com")
+	assert.True(t, f[1].IsAFavoriteOf("lucky@unsuitable.com"))
+	assert.Equal(t, 3, f[1].FavoriteCount())
+}
