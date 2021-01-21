@@ -2,8 +2,11 @@ package echohttp
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/brycekbargar/realworld-backend/domains/articledomain"
+	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 	"github.com/gosimple/slug"
 	"github.com/labstack/echo/v4"
 )
@@ -13,35 +16,42 @@ func init() {
 }
 
 type articlesHandler struct {
+	users       userdomain.Repository
+	articles    articledomain.Repository
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
 }
 
 func newArticlesHandler(
+	users userdomain.Repository,
+	articles articledomain.Repository,
 	authed echo.MiddlewareFunc,
-	maybeAuthed echo.MiddlewareFunc) *articlesHandler {
+	maybeAuthed echo.MiddlewareFunc,
+) *articlesHandler {
 	return &articlesHandler{
+		users,
+		articles,
 		authed,
 		maybeAuthed,
 	}
 }
 
-func (r *articlesHandler) mapRoutes(g *echo.Group) {
-	g.GET("/articles", r.list, r.maybeAuthed)
-	g.GET("/articles/feed", r.feed, r.authed)
-	g.GET("/articles/:slug", r.article, r.maybeAuthed)
-	g.POST("/articles", r.create, r.authed)
-	g.PUT("/articles/:slug", r.update, r.authed)
-	g.DELETE("/articles/:slug", r.delete, r.authed)
+func (h *articlesHandler) mapRoutes(g *echo.Group) {
+	g.GET("/articles", h.list, h.maybeAuthed)
+	g.GET("/articles/feed", h.feed, h.authed)
+	g.GET("/articles/:slug", h.article, h.maybeAuthed)
+	g.POST("/articles", h.create, h.authed)
+	g.PUT("/articles/:slug", h.update, h.authed)
+	g.DELETE("/articles/:slug", h.delete, h.authed)
 
-	g.GET("/articles/:slug/comments", r.commentList, r.maybeAuthed)
-	g.POST("/articles/:slug/comments", r.addComment, r.authed)
-	g.DELETE("/articles/:slug/comments/:id", r.removeComment, r.authed)
+	g.GET("/articles/:slug/comments", h.commentList, h.maybeAuthed)
+	g.POST("/articles/:slug/comments", h.addComment, h.authed)
+	g.DELETE("/articles/:slug/comments/:id", h.removeComment, h.authed)
 
-	g.POST("/articles/:slug/favorite", r.favorite, r.authed)
-	g.DELETE("/articles/:slug/favorite", r.unfavorite, r.authed)
+	g.POST("/articles/:slug/favorite", h.favorite, h.authed)
+	g.DELETE("/articles/:slug/favorite", h.unfavorite, h.authed)
 
-	g.GET("/tags", r.tags)
+	g.GET("/tags", h.tags)
 }
 
 type author struct {
@@ -69,21 +79,81 @@ type list struct {
 	ArticlesCount int              `json:"articlesCount"`
 }
 
-func (r *articlesHandler) list(c echo.Context) error {
-	em, _, _ := c.(*userContext).identity()
-
-	// get all articles
-	if len(em) > 0 {
-		// set the following/favorited logic?
+func (h *articlesHandler) list(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
+	var u *userdomain.User
+	if ok {
+		u, _ = h.users.GetUserByEmail(em)
 	}
 
-	return c.JSON(http.StatusOK, list{
-		make([]articleArticle, 0),
-		0,
-	})
+	lc := articledomain.ListCriteria{
+		Tag:   ctx.QueryParam("tag"),
+		Limit: 20,
+	}
+
+	a := ctx.QueryParam("author")
+	if len(a) > 0 {
+		if ae, err := h.users.GetUserByUsername(a); err == nil {
+			lc.AuthorEmails = []string{ae.Email()}
+		}
+	}
+	f := ctx.QueryParam("favorited")
+	if len(f) > 0 {
+		if fe, err := h.users.GetUserByUsername(f); err == nil {
+			lc.FavoritedByUserEmail = fe.Email()
+		}
+	}
+	l := ctx.QueryParam("limit")
+	if li, err := strconv.Atoi(l); err == nil {
+		lc.Limit = li
+	}
+	o := ctx.QueryParam("offset")
+	if oi, err := strconv.Atoi(o); err == nil {
+		lc.Offset = oi
+	}
+
+	// get all articles
+	al, err := h.articles.LatestArticlesByCriteria(lc)
+	if err != nil {
+		return err
+	}
+
+	res := list{
+		make([]articleArticle, len(al)),
+		len(al),
+	}
+
+	for _, a := range al {
+		aa := articleArticle{
+			Slug:           a.Slug(),
+			Title:          a.Title(),
+			Description:    a.Description(),
+			Body:           a.Body(),
+			TagList:        a.Tags(),
+			CreatedAt:      a.CreatedAtUTC(),
+			UpdatedAt:      a.UpdatedAtUTC(),
+			FavoritesCount: a.FavoriteCount(),
+		}
+		if u != nil {
+			aa.Favorited = a.IsAFavoriteOf(u.Email())
+		}
+		if au, err := h.users.GetUserByEmail(a.AuthorEmail()); err == nil {
+			aa.Author = author{
+				Username: au.Username(),
+				Bio:      au.Bio(),
+				Image:    au.Image(),
+			}
+			if u != nil {
+				aa.Author.Following = u.IsFollowing(au)
+			}
+		}
+		res.Articles = append(res.Articles, aa)
+	}
+
+	return ctx.JSON(http.StatusOK, res)
 }
 
-func (r *articlesHandler) feed(c echo.Context) error {
+func (h *articlesHandler) feed(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -101,7 +171,7 @@ type article struct {
 	Article articleArticle `json:"article"`
 }
 
-func (r *articlesHandler) article(c echo.Context) error {
+func (h *articlesHandler) article(c echo.Context) error {
 	em, _, _ := c.(*userContext).identity()
 
 	// get the article
@@ -122,7 +192,7 @@ type create struct {
 	Article articleArticle `json:"article"`
 }
 
-func (r *articlesHandler) create(c echo.Context) error {
+func (h *articlesHandler) create(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -138,7 +208,7 @@ func (r *articlesHandler) create(c echo.Context) error {
 	return c.JSON(http.StatusCreated, article{})
 }
 
-func (r *articlesHandler) update(c echo.Context) error {
+func (h *articlesHandler) update(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -154,7 +224,7 @@ func (r *articlesHandler) update(c echo.Context) error {
 	return c.JSON(http.StatusOK, article{})
 }
 
-func (r *articlesHandler) delete(c echo.Context) error {
+func (h *articlesHandler) delete(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -177,7 +247,7 @@ type commentList struct {
 	Comments []commentComment `json:"comments"`
 }
 
-func (r *articlesHandler) commentList(c echo.Context) error {
+func (h *articlesHandler) commentList(c echo.Context) error {
 	em, _, _ := c.(*userContext).identity()
 
 	// get all comments
@@ -202,7 +272,7 @@ type addComment struct {
 	Comment addCommentComment `json:"comment"`
 }
 
-func (r *articlesHandler) addComment(c echo.Context) error {
+func (h *articlesHandler) addComment(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -218,7 +288,7 @@ func (r *articlesHandler) addComment(c echo.Context) error {
 	return c.JSON(http.StatusCreated, comment{})
 }
 
-func (r *articlesHandler) removeComment(c echo.Context) error {
+func (h *articlesHandler) removeComment(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -229,7 +299,7 @@ func (r *articlesHandler) removeComment(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-func (r *articlesHandler) favorite(c echo.Context) error {
+func (h *articlesHandler) favorite(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -240,7 +310,7 @@ func (r *articlesHandler) favorite(c echo.Context) error {
 	return c.JSON(http.StatusOK, article{})
 }
 
-func (r *articlesHandler) unfavorite(c echo.Context) error {
+func (h *articlesHandler) unfavorite(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
@@ -255,7 +325,7 @@ type tagList struct {
 	Tags []string `json:"tags"`
 }
 
-func (r *articlesHandler) tags(c echo.Context) error {
+func (h *articlesHandler) tags(c echo.Context) error {
 	_, _, ok := c.(*userContext).identity()
 	if !ok {
 		return identityNotOk
