@@ -214,9 +214,9 @@ type article struct {
 
 func (h *articlesHandler) article(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.users.GetUserByEmail(em)
-	if !ok || err != nil {
-		return identityNotOk
+	var u *userdomain.User
+	if ok {
+		u, _ = h.users.GetUserByEmail(em)
 	}
 
 	// get the article
