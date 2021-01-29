@@ -170,13 +170,13 @@ func (u *User) HasPassword(password string) (bool, error) {
 }
 
 // IsFollowing checks if the provided user is currently being followed by this user.
-func (u *User) IsFollowing(fu *User) bool {
-	if fu == nil {
+func (u *User) IsFollowing(email string) bool {
+	if len(email) == 0 {
 		return false
 	}
 
 	for _, f := range u.following {
-		if f.email == fu.email {
+		if f.email == email {
 			return true
 		}
 	}
@@ -187,7 +187,7 @@ func (u *User) IsFollowing(fu *User) bool {
 // StartFollowing tracks that the provided user should be followed.
 // This method is idempotent (but possibly not thread-safe).
 func (u *User) StartFollowing(fu *User) {
-	if fu == nil || u.IsFollowing(fu) {
+	if fu == nil || u.IsFollowing(fu.email) {
 		return
 	}
 	u.following = append(u.following, fu)

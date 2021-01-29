@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 	id "github.com/gosimple/slug"
 )
 
@@ -35,9 +34,10 @@ type AuthoredArticle struct {
 }
 
 // Author is the author of an article.
-// Note, this is an abuse of domains and the article domain should have its own user probably.
-type Author struct {
-	userdomain.User
+type Author interface {
+	Email() string
+	Bio() string
+	Image() string
 }
 
 // NewArticle creates a new Article with the provided information and defaults for the rest.
@@ -67,7 +67,7 @@ func NewArticle(title string, description string, body string, authorEmail strin
 }
 
 // ExistingArticle creates an Article with the provided information.
-func ExistingArticle(slug string, title string, description string, body string, tags []string, createdAt time.Time, updatedAt time.Time, author *userdomain.User, comments []*Comment, favoritedBy []string) (*AuthoredArticle, error) {
+func ExistingArticle(slug string, title string, description string, body string, tags []string, createdAt time.Time, updatedAt time.Time, author Author, comments []*Comment, favoritedBy []string) (*AuthoredArticle, error) {
 	if len(slug) == 0 ||
 		len(title) == 0 ||
 		len(description) == 0 ||
@@ -98,7 +98,7 @@ func ExistingArticle(slug string, title string, description string, body string,
 			comments,
 			favs,
 		},
-		Author{*author},
+		author,
 	}, nil
 }
 

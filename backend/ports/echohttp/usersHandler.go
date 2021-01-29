@@ -269,7 +269,7 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 			return err
 		}
 
-		following = cu.IsFollowing(found)
+		following = cu.IsFollowing(found.Email())
 	}
 
 	return c.JSON(http.StatusOK, profile{

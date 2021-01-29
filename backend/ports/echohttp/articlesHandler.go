@@ -134,14 +134,14 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 			UpdatedAt:      a.UpdatedAtUTC(),
 			FavoritesCount: a.FavoriteCount(),
 			Author: author{
-				Username: a.AuthorEmail(),
+				Username: a.Email(),
 				Bio:      a.Bio(),
 				Image:    a.Image(),
 			},
 		}
 		if u != nil {
 			aa.Favorited = a.IsAFavoriteOf(u.Email())
-			aa.Author.Following = u.IsFollowing(&a.User)
+			aa.Author.Following = u.IsFollowing(a.Email())
 		}
 
 		res.Articles = append(res.Articles, aa)
@@ -192,14 +192,14 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 			UpdatedAt:      a.UpdatedAtUTC(),
 			FavoritesCount: a.FavoriteCount(),
 			Author: author{
-				Username: a.AuthorEmail(),
+				Username: a.Email(),
 				Bio:      a.Bio(),
 				Image:    a.Image(),
 			},
 		}
 		if u != nil {
 			aa.Favorited = a.IsAFavoriteOf(u.Email())
-			aa.Author.Following = u.IsFollowing(&a.User)
+			aa.Author.Following = u.IsFollowing(a.Email())
 		}
 
 		res.Articles = append(res.Articles, aa)
@@ -236,14 +236,14 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 			UpdatedAt:      ar.UpdatedAtUTC(),
 			FavoritesCount: ar.FavoriteCount(),
 			Author: author{
-				Username: ar.AuthorEmail(),
+				Username: ar.Email(),
 				Bio:      ar.Bio(),
 				Image:    ar.Image(),
 			},
 		},
 	}
 	if u != nil {
-		res.Article.Author.Following = u.IsFollowing(&ar.User)
+		res.Article.Author.Following = u.IsFollowing(ar.Email())
 	}
 
 	return ctx.JSON(http.StatusOK, res)

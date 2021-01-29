@@ -353,14 +353,14 @@ func TestUser_Following(t *testing.T) {
 	for _, em := range fem {
 		assert.Contains(t, []string{f[2].Email(), f[3].Email()}, em)
 	}
-	assert.True(t, u.IsFollowing(f[2]))
-	assert.True(t, u.IsFollowing(f[3]))
+	assert.True(t, u.IsFollowing(f[2].Email()))
+	assert.True(t, u.IsFollowing(f[3].Email()))
 
 	u.StartFollowing(f[1])
 	fem = u.FollowingEmails()
 	assert.Len(t, fem, 3, "because they're no longer following a new user")
 	assert.Contains(t, fem, f[1].Email())
-	assert.True(t, u.IsFollowing(f[1]))
+	assert.True(t, u.IsFollowing(f[1].Email()))
 
 	u.StartFollowing(f[1])
 	fem = u.FollowingEmails()
@@ -370,7 +370,7 @@ func TestUser_Following(t *testing.T) {
 	fem = u.FollowingEmails()
 	assert.Len(t, fem, 2, "because they're no longer following a user")
 	assert.NotContains(t, fem, f[2].Email())
-	assert.False(t, u.IsFollowing(f[2]))
+	assert.False(t, u.IsFollowing(f[2].Email()))
 
 	u.StopFollowing(f[2])
 	fem = u.FollowingEmails()
@@ -378,7 +378,7 @@ func TestUser_Following(t *testing.T) {
 
 	assert.NotPanics(t, func() {
 		u := u
-		u.IsFollowing(nil)
+		u.IsFollowing("")
 	}, "because checking for nil followers should be ok")
 
 	assert.NotPanics(t, func() {
@@ -396,8 +396,8 @@ func TestUser_Following(t *testing.T) {
 	u.StopFollowing(f[3])
 	fem = u.FollowingEmails()
 	assert.Empty(t, fem, "because we've unfollowed everyone")
-	assert.False(t, u.IsFollowing(f[1]))
-	assert.False(t, u.IsFollowing(f[3]))
+	assert.False(t, u.IsFollowing(f[1].Email()))
+	assert.False(t, u.IsFollowing(f[3].Email()))
 }
 
 func optional(s string) *string {
