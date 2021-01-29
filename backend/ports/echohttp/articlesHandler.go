@@ -274,7 +274,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			err)
 	}
 
-	created, err := articledomain.NewArticle(
+	toCreate, err := articledomain.NewArticle(
 		a.Article.Title,
 		a.Article.Description,
 		a.Article.Body,
@@ -287,7 +287,8 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			err)
 	}
 
-	if err := h.articles.Create(created); err != nil {
+	created, err := h.articles.Create(toCreate)
+	if err != nil {
 		if err == userdomain.ErrDuplicateValue {
 			return echo.NewHTTPError(
 				http.StatusBadRequest,
@@ -311,26 +312,55 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 				Username:  u.Email(),
 				Bio:       u.Bio(),
 				Image:     u.Image(),
-				Following: u.IsFollowing(u.Email()),
+				Following: false,
 			},
 		},
 	})
 }
 
-func (h *articlesHandler) update(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
+func (h *articlesHandler) update(ctx echo.Context) error {
+	_, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
-	a := new(create)
-	if err := c.Bind(a); err != nil {
+	b := new(create)
+	if err := ctx.Bind(b); err != nil {
 		return echo.ErrBadRequest
 	}
 
 	// Update the thing
+	updated, err := h.articles.UpdateArticleBySlug(
+		ctx.Param("slug"),
+		func(a *articledomain.Article) (*articledomain.Article, error) {
+			return articledomain.UpdatedArticle(*a,
+				b.Article.Title,
+				b.Article.Description,
+				b.Article.Body)
+		})
+	if err != nil {
+		return err
+	}
 
-	return c.JSON(http.StatusOK, article{})
+	return ctx.JSON(http.StatusCreated, article{
+		articleArticle{
+			Slug:           updated.Slug(),
+			Title:          updated.Title(),
+			Description:    updated.Description(),
+			Body:           updated.Body(),
+			TagList:        updated.Tags(),
+			CreatedAt:      updated.CreatedAtUTC(),
+			UpdatedAt:      updated.UpdatedAtUTC(),
+			Favorited:      false,
+			FavoritesCount: updated.FavoriteCount(),
+			Author: author{
+				Username:  updated.Email(),
+				Bio:       updated.Bio(),
+				Image:     updated.Image(),
+				Following: false,
+			},
+		},
+	})
 }
 
 func (h *articlesHandler) delete(c echo.Context) error {
