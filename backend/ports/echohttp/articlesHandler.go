@@ -153,18 +153,65 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, res)
 }
 
-func (h *articlesHandler) feed(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
-	if !ok {
+func (h *articlesHandler) feed(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
+	u, err := h.users.GetUserByEmail(em)
+	if !ok || err != nil {
 		return identityNotOk
 	}
 
-	// Get the feed articles
+	lc := articledomain.ListCriteria{
+		Limit:        20,
+		AuthorEmails: u.FollowingEmails(),
+	}
+	l := ctx.QueryParam("limit")
+	if li, err := strconv.Atoi(l); err == nil {
+		lc.Limit = li
+	}
+	o := ctx.QueryParam("offset")
+	if oi, err := strconv.Atoi(o); err == nil {
+		lc.Offset = oi
+	}
 
-	return c.JSON(http.StatusOK, list{
-		make([]articleArticle, 0),
-		0,
-	})
+	// Get the feed articles
+	al, err := h.articles.LatestArticlesByCriteria(lc)
+	if err != nil {
+		return err
+	}
+
+	res := list{
+		make([]articleArticle, len(al)),
+		len(al),
+	}
+
+	for _, a := range al {
+		aa := articleArticle{
+			Slug:           a.Slug(),
+			Title:          a.Title(),
+			Description:    a.Description(),
+			Body:           a.Body(),
+			TagList:        a.Tags(),
+			CreatedAt:      a.CreatedAtUTC(),
+			UpdatedAt:      a.UpdatedAtUTC(),
+			FavoritesCount: a.FavoriteCount(),
+		}
+		if u != nil {
+			aa.Favorited = a.IsAFavoriteOf(u.Email())
+		}
+		if au, err := h.users.GetUserByEmail(a.AuthorEmail()); err == nil {
+			aa.Author = author{
+				Username: au.Username(),
+				Bio:      au.Bio(),
+				Image:    au.Image(),
+			}
+			if u != nil {
+				aa.Author.Following = u.IsFollowing(au)
+			}
+		}
+		res.Articles = append(res.Articles, aa)
+	}
+
+	return ctx.JSON(http.StatusOK, res)
 }
 
 type article struct {
