@@ -133,20 +133,17 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 			CreatedAt:      a.CreatedAtUTC(),
 			UpdatedAt:      a.UpdatedAtUTC(),
 			FavoritesCount: a.FavoriteCount(),
+			Author: author{
+				Username: a.AuthorEmail(),
+				Bio:      a.Bio(),
+				Image:    a.Image(),
+			},
 		}
 		if u != nil {
 			aa.Favorited = a.IsAFavoriteOf(u.Email())
+			aa.Author.Following = u.IsFollowing(&a.User)
 		}
-		if au, err := h.users.GetUserByEmail(a.AuthorEmail()); err == nil {
-			aa.Author = author{
-				Username: au.Username(),
-				Bio:      au.Bio(),
-				Image:    au.Image(),
-			}
-			if u != nil {
-				aa.Author.Following = u.IsFollowing(au)
-			}
-		}
+
 		res.Articles = append(res.Articles, aa)
 	}
 
@@ -194,20 +191,17 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 			CreatedAt:      a.CreatedAtUTC(),
 			UpdatedAt:      a.UpdatedAtUTC(),
 			FavoritesCount: a.FavoriteCount(),
+			Author: author{
+				Username: a.AuthorEmail(),
+				Bio:      a.Bio(),
+				Image:    a.Image(),
+			},
 		}
 		if u != nil {
 			aa.Favorited = a.IsAFavoriteOf(u.Email())
+			aa.Author.Following = u.IsFollowing(&a.User)
 		}
-		if au, err := h.users.GetUserByEmail(a.AuthorEmail()); err == nil {
-			aa.Author = author{
-				Username: au.Username(),
-				Bio:      au.Bio(),
-				Image:    au.Image(),
-			}
-			if u != nil {
-				aa.Author.Following = u.IsFollowing(au)
-			}
-		}
+
 		res.Articles = append(res.Articles, aa)
 	}
 
