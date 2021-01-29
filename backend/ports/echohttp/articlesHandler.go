@@ -1,6 +1,7 @@
 package echohttp
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -319,7 +320,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 }
 
 func (h *articlesHandler) update(ctx echo.Context) error {
-	_, _, ok := ctx.(*userContext).identity()
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
@@ -329,10 +330,12 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	// Update the thing
 	updated, err := h.articles.UpdateArticleBySlug(
 		ctx.Param("slug"),
 		func(a *articledomain.Article) (*articledomain.Article, error) {
+			if a.AuthorEmail() != em {
+				return nil, errors.New("articles can only be updated by their author")
+			}
 			return articledomain.UpdatedArticle(*a,
 				b.Article.Title,
 				b.Article.Description,
@@ -342,7 +345,7 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 		return err
 	}
 
-	return ctx.JSON(http.StatusCreated, article{
+	return ctx.JSON(http.StatusOK, article{
 		articleArticle{
 			Slug:           updated.Slug(),
 			Title:          updated.Title(),
@@ -363,15 +366,25 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 	})
 }
 
-func (h *articlesHandler) delete(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
+func (h *articlesHandler) delete(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
-	// Delete the thing
+	ar, err := h.articles.GetArticleBySlug(ctx.Param("slug"))
+	if err != nil {
+		return err
+	}
+	if ar.AuthorEmail() != em {
+		return errors.New("articles can only be deleted by their author")
+	}
 
-	return c.NoContent(http.StatusOK)
+	if err = h.articles.Delete(&ar.Article); err != nil {
+		return err
+	}
+
+	return ctx.NoContent(http.StatusOK)
 }
 
 type commentComment struct {

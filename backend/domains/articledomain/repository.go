@@ -28,4 +28,6 @@ type Repository interface {
 	// UpdateArticleBySlug finds a single article based on its slug
 	// then applies the provide mutations.
 	UpdateArticleBySlug(string, func(*Article) (*Article, error)) (*AuthoredArticle, error)
+	// DeleteArticleBySlug deletes the article with the provide slug if it exists.
+	Delete(*Article) error
 }
