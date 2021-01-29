@@ -212,15 +212,41 @@ type article struct {
 	Article articleArticle `json:"article"`
 }
 
-func (h *articlesHandler) article(c echo.Context) error {
-	em, _, _ := c.(*userContext).identity()
-
-	// get the article
-	if len(em) > 0 {
-		// set the following/favorited logic?
+func (h *articlesHandler) article(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
+	var u *userdomain.User
+	if ok {
+		u, _ = h.users.GetUserByEmail(em)
 	}
 
-	return c.JSON(http.StatusOK, article{})
+	// get the article
+	ar, err := h.articles.GetArticleBySlug(ctx.Param("slug"))
+	if err != nil {
+		return err
+	}
+
+	res := article{
+		articleArticle{
+			Slug:           ar.Slug(),
+			Title:          ar.Title(),
+			Description:    ar.Description(),
+			Body:           ar.Body(),
+			TagList:        ar.Tags(),
+			CreatedAt:      ar.CreatedAtUTC(),
+			UpdatedAt:      ar.UpdatedAtUTC(),
+			FavoritesCount: ar.FavoriteCount(),
+			Author: author{
+				Username: ar.AuthorEmail(),
+				Bio:      ar.Bio(),
+				Image:    ar.Image(),
+			},
+		},
+	}
+	if u != nil {
+		res.Article.Author.Following = u.IsFollowing(&ar.User)
+	}
+
+	return ctx.JSON(http.StatusOK, res)
 }
 
 type createArticle struct {
