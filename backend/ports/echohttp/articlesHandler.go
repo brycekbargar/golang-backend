@@ -243,6 +243,7 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 		},
 	}
 	if u != nil {
+		res.Article.Favorited = ar.IsAFavoriteOf(u.Email())
 		res.Article.Author.Following = u.IsFollowing(ar.Email())
 	}
 
@@ -304,6 +305,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			TagList:        created.Tags(),
 			CreatedAt:      created.CreatedAtUTC(),
 			UpdatedAt:      created.UpdatedAtUTC(),
+			Favorited:      false,
 			FavoritesCount: created.FavoriteCount(),
 			Author: author{
 				Username:  u.Email(),
