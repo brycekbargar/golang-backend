@@ -32,14 +32,14 @@ func NewUsers() *Users {
 }
 
 // Create creates a new user.
-func (r *Users) Create(u *userdomain.User) error {
+func (r *Users) Create(u *userdomain.User) (*userdomain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for e, v := range r.repo {
 		if e == strings.ToLower(u.Email()) ||
 			strings.ToLower(v.username) == strings.ToLower(u.Username()) {
-			return userdomain.ErrDuplicateValue
+			return nil, userdomain.ErrDuplicateValue
 		}
 	}
 
@@ -51,7 +51,7 @@ func (r *Users) Create(u *userdomain.User) error {
 		strings.Join(u.FollowingEmails(), ","),
 		u.Password(),
 	}
-	return nil
+	return r.GetUserByEmail(u.Email())
 }
 
 // GetUserByEmail finds a single user based on their username.
@@ -103,23 +103,23 @@ func (r *Users) GetUserByUsername(un string) (*userdomain.User, error) {
 
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
-func (r *Users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdomain.User, error)) error {
+func (r *Users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdomain.User, error)) (*userdomain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	u, err := r.GetUserByEmail(e)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	u, err = uf(u)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, fe := range u.FollowingEmails() {
 		if _, err := r.getUserByEmail(fe, false); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -132,7 +132,7 @@ func (r *Users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdoma
 
 			// Add the deleted user back if they've become a duplicate
 			r.repo[strings.ToLower(e)] = ru
-			return userdomain.ErrDuplicateValue
+			return nil, userdomain.ErrDuplicateValue
 		}
 	}
 
@@ -145,5 +145,5 @@ func (r *Users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdoma
 		u.Password(),
 	}
 
-	return nil
+	return r.GetUserByEmail(u.Email())
 }

@@ -24,8 +24,13 @@ func TestCreate_RoundTrips(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
 
-			err := r.Create(cu)
+			cu, err := r.Create(cu)
 			require.NoError(t, err)
+			assert.Equal(t, "user@panicky.com", cu.Email())
+			assert.Equal(t, "panicky user", cu.Username())
+			h, err := cu.HasPassword("panicky password")
+			require.NoError(t, err)
+			assert.True(t, h)
 
 			t.Run("By Email", func(t *testing.T) {
 				t.Parallel()
@@ -67,7 +72,7 @@ func TestCreate_DuplicateUser(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
 
-			err := r.Create(cu)
+			_, err := r.Create(cu)
 			require.NoError(t, err)
 
 			t.Run("By Username", func(t *testing.T) {
@@ -75,7 +80,7 @@ func TestCreate_DuplicateUser(t *testing.T) {
 
 				du, err := userdomain.UpdatedUser(*cu, "user@ablaze.com", "", nil, nil, "")
 				require.NoError(t, err)
-				err = r.Create(du)
+				_, err = r.Create(du)
 				assert.EqualError(t, err, userdomain.ErrDuplicateValue.Error(),
 					"because usernames are unique")
 			})
@@ -84,7 +89,7 @@ func TestCreate_DuplicateUser(t *testing.T) {
 				t.Parallel()
 				du, err := userdomain.UpdatedUser(*cu, "", "ablaze user", nil, nil, "")
 				require.NoError(t, err)
-				err = r.Create(du)
+				_, err = r.Create(du)
 				assert.EqualError(t, err, userdomain.ErrDuplicateValue.Error(),
 					"because emails are unique")
 			})
@@ -100,24 +105,24 @@ func TestUpdateUserByEmail(t *testing.T) {
 		r := r
 		t.Run(k, func(t *testing.T) {
 			for _, u := range f {
-				err := r.Create(u)
+				_, err := r.Create(u)
 				require.NoError(t, err)
 			}
 			t.Parallel()
 
-			err := r.UpdateUserByEmail("user@grumpy.com",
+			_, err := r.UpdateUserByEmail("user@grumpy.com",
 				func(u *userdomain.User) (*userdomain.User, error) {
 					return u, nil
 				})
 			require.EqualError(t, err, userdomain.ErrNotFound.Error())
 
-			err = r.UpdateUserByEmail(f[0].Email(),
+			uu, err := r.UpdateUserByEmail(f[0].Email(),
 				func(u *userdomain.User) (*userdomain.User, error) {
 					return userdomain.ExistingUser(
 						"user@aback.com",
 						"aback username",
-						"",
-						"",
+						u.Bio(),
+						u.Image(),
 						[]*userdomain.User{
 							f[1],
 							f[2],
@@ -126,6 +131,10 @@ func TestUpdateUserByEmail(t *testing.T) {
 					)
 				})
 			require.NoError(t, err)
+			assert.Equal(t, "user@aback.com", uu.Email())
+			assert.Equal(t, "aback username", uu.Username())
+			assert.Equal(t, f[0].Bio(), uu.Bio())
+			assert.Equal(t, f[0].Image(), uu.Image())
 
 			u, err := r.GetUserByEmail("user@aback.com")
 			assert.NoError(t, err, "because a user was updated to this email")
@@ -142,7 +151,7 @@ func TestUpdateUserByEmail(t *testing.T) {
 			assert.Contains(t, u.FollowingEmails(), f[1].Email())
 			assert.Contains(t, u.FollowingEmails(), f[2].Email())
 
-			err = r.UpdateUserByEmail(f[1].Email(),
+			_, err = r.UpdateUserByEmail(f[1].Email(),
 				func(u *userdomain.User) (*userdomain.User, error) {
 					nu, err := userdomain.NewUserWithPassword(
 						"user@squealing.com",

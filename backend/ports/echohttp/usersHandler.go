@@ -95,7 +95,7 @@ func (r *usersHandler) create(c echo.Context) error {
 			err)
 	}
 
-	if err := r.users.Create(created); err != nil {
+	if _, err := r.users.Create(created); err != nil {
 		if err == userdomain.ErrDuplicateValue {
 			return echo.NewHTTPError(
 				http.StatusBadRequest,
@@ -193,7 +193,7 @@ func (r *usersHandler) update(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	err := r.users.UpdateUserByEmail(
+	found, err := r.users.UpdateUserByEmail(
 		em,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			return userdomain.UpdatedUser(*u,
@@ -208,13 +208,6 @@ func (r *usersHandler) update(c echo.Context) error {
 			return echo.ErrNotFound
 		}
 		return err
-	}
-
-	found, err := r.users.GetUserByEmail(b.User.Email)
-	if err != nil {
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			"couldn't find the user after update")
 	}
 
 	// Users can change their email so we need to make sure we're giving them a new token.
@@ -300,7 +293,7 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	err = r.users.UpdateUserByEmail(
+	_, err = r.users.UpdateUserByEmail(
 		em,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StartFollowing(fu)
@@ -341,7 +334,7 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	err = r.users.UpdateUserByEmail(
+	_, err = r.users.UpdateUserByEmail(
 		em,
 		func(u *userdomain.User) (*userdomain.User, error) {
 			u.StopFollowing(fu)
