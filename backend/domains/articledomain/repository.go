@@ -19,6 +19,8 @@ type ListCriteria struct {
 
 // Repository allows performing abstracted I/O operations on articles.
 type Repository interface {
+	// Create creates a new article.
+	Create(*Article) error
 	// LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
 	LatestArticlesByCriteria(ListCriteria) ([]*AuthoredArticle, error)
 	// GetArticleBySlug gets a single article with the given slug.

@@ -214,9 +214,9 @@ type article struct {
 
 func (h *articlesHandler) article(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	var u *userdomain.User
-	if ok {
-		u, _ = h.users.GetUserByEmail(em)
+	u, err := h.users.GetUserByEmail(em)
+	if !ok || err != nil {
+		return identityNotOk
 	}
 
 	// get the article
@@ -256,23 +256,63 @@ type createArticle struct {
 	TagList     []string `json:"tagList,omitempty"`
 }
 type create struct {
-	Article articleArticle `json:"article"`
+	Article createArticle `json:"article"`
 }
 
-func (h *articlesHandler) create(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
-	if !ok {
+func (h *articlesHandler) create(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
+	u, err := h.users.GetUserByEmail(em)
+	if !ok || err != nil {
 		return identityNotOk
 	}
 
 	a := new(create)
-	if err := c.Bind(a); err != nil {
-		return echo.ErrBadRequest
+	if err := ctx.Bind(a); err != nil {
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			err)
 	}
 
-	// Make the thing
+	created, err := articledomain.NewArticle(
+		a.Article.Title,
+		a.Article.Description,
+		a.Article.Body,
+		em,
+		a.Article.TagList...,
+	)
+	if err != nil {
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			err)
+	}
 
-	return c.JSON(http.StatusCreated, article{})
+	if err := h.articles.Create(created); err != nil {
+		if err == userdomain.ErrDuplicateValue {
+			return echo.NewHTTPError(
+				http.StatusBadRequest,
+				err)
+		}
+		return err
+	}
+
+	return ctx.JSON(http.StatusCreated, article{
+		articleArticle{
+			Slug:           created.Slug(),
+			Title:          created.Title(),
+			Description:    created.Description(),
+			Body:           created.Body(),
+			TagList:        created.Tags(),
+			CreatedAt:      created.CreatedAtUTC(),
+			UpdatedAt:      created.UpdatedAtUTC(),
+			FavoritesCount: created.FavoriteCount(),
+			Author: author{
+				Username:  u.Email(),
+				Bio:       u.Bio(),
+				Image:     u.Image(),
+				Following: u.IsFollowing(u.Email()),
+			},
+		},
+	})
 }
 
 func (h *articlesHandler) update(c echo.Context) error {
