@@ -399,17 +399,41 @@ type commentList struct {
 	Comments []commentComment `json:"comments"`
 }
 
-func (h *articlesHandler) commentList(c echo.Context) error {
-	em, _, _ := c.(*userContext).identity()
-
-	// get all comments
-	if len(em) > 0 {
-		// set the following logic?
+func (h *articlesHandler) commentList(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
+	var u *userdomain.User
+	if ok {
+		u, _ = h.users.GetUserByEmail(em)
 	}
 
-	return c.JSON(http.StatusOK, commentList{
-		make([]commentComment, 0),
-	})
+	ar, err := h.articles.GetArticleBySlug(ctx.Param("slug"))
+	if err != nil {
+		return err
+	}
+
+	res := commentList{
+		make([]commentComment, 0, len(ar.Comments())),
+	}
+	for _, c := range ar.Comments() {
+		if a, err := h.users.GetUserByEmail(c.AuthorEmail()); err == nil {
+			// This is just ignoring comments where we can't get the author
+			// That's probably wrong?
+			res.Comments = append(res.Comments, commentComment{
+				c.ID(),
+				c.CreatedAtUTC(),
+				c.UpdatedAtUTC(),
+				c.Body(),
+				author{
+					a.Username(),
+					a.Bio(),
+					a.Image(),
+					u.IsFollowing(a.Email()),
+				},
+			})
+		}
+	}
+
+	return ctx.JSON(http.StatusOK, res)
 }
 
 type comment struct {
@@ -424,20 +448,47 @@ type addComment struct {
 	Comment addCommentComment `json:"comment"`
 }
 
-func (h *articlesHandler) addComment(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
-	if !ok {
+func (h *articlesHandler) addComment(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
+	u, err := h.users.GetUserByEmail(em)
+	if !ok || err != nil {
 		return identityNotOk
 	}
 
-	a := new(create)
-	if err := c.Bind(a); err != nil {
+	c := new(addComment)
+	if err := ctx.Bind(c); err != nil {
 		return echo.ErrBadRequest
 	}
 
 	// Make the thing
+	var newc *articledomain.Comment
+	_, err = h.articles.UpdateArticleBySlug(
+		ctx.Param("slug"),
+		func(a *articledomain.Article) (*articledomain.Article, error) {
+			// How do I get the comment id using DDD?
+			// Maybe I should have the caller randomly assign it?
+			// Probably need a different method and tie creating comments to the domain?
+			newc, err = a.AddComment(c.Comment.Body, em)
+			return a, err
+		})
+	if err != nil {
+		return err
+	}
 
-	return c.JSON(http.StatusCreated, comment{})
+	return ctx.JSON(http.StatusCreated, comment{
+		commentComment{
+			newc.ID(),
+			newc.CreatedAtUTC(),
+			newc.UpdatedAtUTC(),
+			newc.Body(),
+			author{
+				u.Username(),
+				u.Bio(),
+				u.Image(),
+				false,
+			},
+		},
+	})
 }
 
 func (h *articlesHandler) removeComment(c echo.Context) error {
