@@ -514,26 +514,80 @@ func (h *articlesHandler) removeComment(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusOK)
 }
 
-func (h *articlesHandler) favorite(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
+func (h *articlesHandler) favorite(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
 	// favorite
+	updated, err := h.articles.UpdateArticleBySlug(
+		ctx.Param("slug"),
+		func(a *articledomain.Article) (*articledomain.Article, error) {
+			a.Favorite(em)
+			return a, nil
+		})
+	if err != nil {
+		return err
+	}
 
-	return c.JSON(http.StatusOK, article{})
+	return ctx.JSON(http.StatusOK, article{
+		articleArticle{
+			Slug:           updated.Slug(),
+			Title:          updated.Title(),
+			Description:    updated.Description(),
+			Body:           updated.Body(),
+			TagList:        updated.Tags(),
+			CreatedAt:      updated.CreatedAtUTC(),
+			UpdatedAt:      updated.UpdatedAtUTC(),
+			Favorited:      true,
+			FavoritesCount: updated.FavoriteCount(),
+			Author: author{
+				Username:  updated.Email(),
+				Bio:       updated.Bio(),
+				Image:     updated.Image(),
+				Following: false,
+			},
+		},
+	})
 }
 
-func (h *articlesHandler) unfavorite(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
+func (h *articlesHandler) unfavorite(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
 	// unfavorite
+	updated, err := h.articles.UpdateArticleBySlug(
+		ctx.Param("slug"),
+		func(a *articledomain.Article) (*articledomain.Article, error) {
+			a.Unfavorite(em)
+			return a, nil
+		})
+	if err != nil {
+		return err
+	}
 
-	return c.JSON(http.StatusOK, article{})
+	return ctx.JSON(http.StatusOK, article{
+		articleArticle{
+			Slug:           updated.Slug(),
+			Title:          updated.Title(),
+			Description:    updated.Description(),
+			Body:           updated.Body(),
+			TagList:        updated.Tags(),
+			CreatedAt:      updated.CreatedAtUTC(),
+			UpdatedAt:      updated.UpdatedAtUTC(),
+			Favorited:      false,
+			FavoritesCount: updated.FavoriteCount(),
+			Author: author{
+				Username:  updated.Email(),
+				Bio:       updated.Bio(),
+				Image:     updated.Image(),
+				Following: false,
+			},
+		},
+	})
 }
 
 type tagList struct {
