@@ -17,22 +17,22 @@ type userRecord struct {
 	password  string
 }
 
-// Users is a (super inefficient) in-memory repository implementation for the usersdomain.Repository.
-type Users struct {
+// users is a (super inefficient) in-memory repository implementation for the usersdomain.Repository.
+type users struct {
 	mu   *sync.Mutex
 	repo map[string]userRecord
 }
 
 // NewUsers creates a new userdomain.Repository implementation for the users domain
-func NewUsers() *Users {
-	return &Users{
+func NewUsers() userdomain.Repository {
+	return &users{
 		&sync.Mutex{},
 		make(map[string]userRecord),
 	}
 }
 
 // Create creates a new user.
-func (r *Users) Create(u *userdomain.User) (*userdomain.User, error) {
+func (r *users) Create(u *userdomain.User) (*userdomain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -55,12 +55,12 @@ func (r *Users) Create(u *userdomain.User) (*userdomain.User, error) {
 }
 
 // GetUserByEmail finds a single user based on their username.
-func (r *Users) GetUserByEmail(e string) (*userdomain.User, error) {
+func (r *users) GetUserByEmail(e string) (*userdomain.User, error) {
 	return r.getUserByEmail(e, true)
 }
 
 // getUserByEmail finds a single user based on their username (without infinitely recursing)
-func (r *Users) getUserByEmail(e string, recurse bool) (*userdomain.User, error) {
+func (r *users) getUserByEmail(e string, recurse bool) (*userdomain.User, error) {
 	if u, ok := r.repo[strings.ToLower(e)]; ok {
 
 		var uf []*userdomain.User
@@ -91,7 +91,7 @@ func (r *Users) getUserByEmail(e string, recurse bool) (*userdomain.User, error)
 }
 
 // GetUserByUsername finds a single user based on their email address.
-func (r *Users) GetUserByUsername(un string) (*userdomain.User, error) {
+func (r *users) GetUserByUsername(un string) (*userdomain.User, error) {
 	for k, v := range r.repo {
 		if strings.ToLower(v.username) == strings.ToLower(un) {
 			return r.GetUserByEmail(k)
@@ -103,7 +103,7 @@ func (r *Users) GetUserByUsername(un string) (*userdomain.User, error) {
 
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
-func (r *Users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdomain.User, error)) (*userdomain.User, error) {
+func (r *users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdomain.User, error)) (*userdomain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
