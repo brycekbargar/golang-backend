@@ -25,9 +25,14 @@ type Repository interface {
 	LatestArticlesByCriteria(ListCriteria) ([]*AuthoredArticle, error)
 	// GetArticleBySlug gets a single article with the given slug.
 	GetArticleBySlug(string) (*AuthoredArticle, error)
+	// GetCommentsBySlug gets a single article and its comments with the given slug.
+	GetCommentsBySlug(string) (*CommentedArticle, error)
 	// UpdateArticleBySlug finds a single article based on its slug
 	// then applies the provide mutations.
 	UpdateArticleBySlug(string, func(*Article) (*Article, error)) (*AuthoredArticle, error)
+	// UpdateCommentsBySlug finds a single article based on its slug
+	// then applies the provide mutations to its comments.
+	UpdateCommentsBySlug(string, func(*CommentedArticle) (*CommentedArticle, error)) (*Comment, error)
 	// DeleteArticleBySlug deletes the article with the provide slug if it exists.
 	Delete(*Article) error
 }

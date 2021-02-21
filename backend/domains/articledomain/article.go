@@ -27,6 +27,9 @@ type Article struct {
 	favoritedBy  map[string]interface{}
 }
 
+// CommentedArticle is an individual post in the application with its comment information included.
+type CommentedArticle = Article
+
 // AuthoredArticle is an individual post in the application with its author information included.
 type AuthoredArticle struct {
 	Article
@@ -173,14 +176,14 @@ func (a Article) Tags() []string {
 }
 
 // Comments is the slice of comments associated with the Article sorted in the order they were created.
-func (a Article) Comments() []*Comment {
+func (a CommentedArticle) Comments() []*Comment {
 	cs := make([]*Comment, len(a.comments))
 	copy(cs, a.comments)
 	return cs
 }
 
 // AddComment creates a new comment and adds it to this Article.
-func (a *Article) AddComment(body string, authorEmail string) (*Comment, error) {
+func (a *CommentedArticle) AddComment(body string, authorEmail string) error {
 	id := 1
 	for _, c := range a.comments {
 		if c.id >= id {
@@ -190,15 +193,15 @@ func (a *Article) AddComment(body string, authorEmail string) (*Comment, error) 
 
 	c, err := newComment(id, body, authorEmail)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	a.comments = append(a.comments, c)
-	return c, nil
+	return nil
 }
 
 // RemoveComment removes the comment (if it exists by id) from this Article.
-func (a *Article) RemoveComment(id int) {
+func (a *CommentedArticle) RemoveComment(id int) {
 	if id == 0 {
 		return
 	}

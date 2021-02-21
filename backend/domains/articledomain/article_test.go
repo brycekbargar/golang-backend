@@ -182,13 +182,13 @@ func TestUpdateArticle(t *testing.T) {
 func TestAddComment(t *testing.T) {
 	t.Parallel()
 	f := articledomain.Fixture
-	c, err := f[0].AddComment("mysterious comment", "mysterious author")
+	err := f[0].AddComment("mysterious comment", "mysterious author")
 
 	require.NoError(t, err)
-	assert.Equal(t, 7, c.ID()) // the last comment in this fixture'd article has id 6
 
 	assert.Equal(t, 2, len(f[0].Comments()))
 	for _, c := range f[0].Comments() {
+		// the last comment in this fixture'd article has id 6
 		if c.ID() == 7 {
 			assert.Equal(t, "mysterious comment", c.Body())
 			assert.Equal(t, "mysterious author", c.AuthorEmail())

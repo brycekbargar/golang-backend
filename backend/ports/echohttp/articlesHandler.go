@@ -406,7 +406,7 @@ func (h *articlesHandler) commentList(ctx echo.Context) error {
 		u, _ = h.users.GetUserByEmail(em)
 	}
 
-	ar, err := h.articles.GetArticleBySlug(ctx.Param("slug"))
+	ar, err := h.articles.GetCommentsBySlug(ctx.Param("slug"))
 	if err != nil {
 		return err
 	}
@@ -461,15 +461,10 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 	}
 
 	// Make the thing
-	var newc *articledomain.Comment
-	_, err = h.articles.UpdateArticleBySlug(
+	newc, err := h.articles.UpdateCommentsBySlug(
 		ctx.Param("slug"),
-		func(a *articledomain.Article) (*articledomain.Article, error) {
-			// How do I get the comment id using DDD?
-			// Maybe I should have the caller randomly assign it?
-			// Probably need a different method and tie creating comments to the domain?
-			newc, err = a.AddComment(c.Comment.Body, em)
-			return a, err
+		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+			return a, a.AddComment(c.Comment.Body, em)
 		})
 	if err != nil {
 		return err
