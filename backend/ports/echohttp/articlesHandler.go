@@ -486,15 +486,32 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 	})
 }
 
-func (h *articlesHandler) removeComment(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
+func (h *articlesHandler) removeComment(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
-	// Delete the thing
+	cid := 1
 
-	return c.NoContent(http.StatusOK)
+	// Delete the thing
+	_, err := h.articles.UpdateCommentsBySlug(
+		ctx.Param("slug"),
+		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+			for _, c := range a.Comments() {
+				if c.ID() == cid && c.AuthorEmail() != em {
+					return nil, errors.New("comments can only be deleted by their author")
+				}
+			}
+
+			a.RemoveComment(cid)
+			return a, nil
+		})
+	if err != nil {
+		return err
+	}
+
+	return ctx.NoContent(http.StatusOK)
 }
 
 func (h *articlesHandler) favorite(c echo.Context) error {
