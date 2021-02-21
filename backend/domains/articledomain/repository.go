@@ -35,4 +35,6 @@ type Repository interface {
 	UpdateCommentsBySlug(string, func(*CommentedArticle) (*CommentedArticle, error)) (*Comment, error)
 	// DeleteArticleBySlug deletes the article with the provide slug if it exists.
 	Delete(*Article) error
+	// DistinctTags returns a distinct list of tags on articles
+	DistinctTags() ([]string, error)
 }

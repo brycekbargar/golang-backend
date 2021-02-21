@@ -594,13 +594,13 @@ type tagList struct {
 	Tags []string `json:"tags"`
 }
 
-func (h *articlesHandler) tags(c echo.Context) error {
-	_, _, ok := c.(*userContext).identity()
-	if !ok {
-		return identityNotOk
+func (h *articlesHandler) tags(ctx echo.Context) error {
+	tags, err := h.articles.DistinctTags()
+	if err != nil {
+		return err
 	}
 
-	// read all the tags
-
-	return c.JSON(http.StatusOK, tagList{})
+	return ctx.JSON(http.StatusOK, tagList{
+		tags,
+	})
 }
