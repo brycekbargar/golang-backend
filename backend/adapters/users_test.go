@@ -10,7 +10,7 @@ import (
 )
 
 var subjects = map[string]userdomain.Repository{
-	"inmemory": inmemory.NewUsers(),
+	"inmemory": inmemory.Users,
 }
 
 func TestCreate_RoundTrips(t *testing.T) {
