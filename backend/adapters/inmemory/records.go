@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"sync"
+	"time"
 )
 
 var (
@@ -31,6 +32,23 @@ type users struct {
 }
 
 type articleRecord struct {
+	slug         string
+	title        string
+	description  string
+	body         string
+	tagList      []string
+	createdAtUTC time.Time
+	updatedAtUTC time.Time
+	author       string
+	comments     []*commentRecord
+	favoritedBy  map[string]interface{}
+}
+
+type commentRecord struct {
+	id           int
+	body         string
+	createdAtUTC time.Time
+	author       string
 }
 
 // articles is a (super inefficient) in-memory repository implementation for the articledomain.Repository.

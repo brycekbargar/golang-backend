@@ -9,17 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var subjects = map[string]userdomain.Repository{
+var uSubjects = map[string]userdomain.Repository{
 	"inmemory": inmemory.Users,
 }
 
-func TestCreate_RoundTrips(t *testing.T) {
+func TestUsersCreate_RoundTrips(t *testing.T) {
 	t.Parallel()
 
 	cu, err := userdomain.NewUserWithPassword("user@panicky.com", "panicky user", "panicky password")
 	require.NoError(t, err)
 
-	for k, r := range subjects {
+	for k, r := range uSubjects {
 		r := r
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
@@ -61,13 +61,13 @@ func TestCreate_RoundTrips(t *testing.T) {
 	}
 }
 
-func TestCreate_DuplicateUser(t *testing.T) {
+func TestUsersCreate_DuplicateUser(t *testing.T) {
 	t.Parallel()
 
 	cu, err := userdomain.NewUserWithPassword("user@smart.com", "smart user", "smart password")
 	require.NoError(t, err)
 
-	for k, r := range subjects {
+	for k, r := range uSubjects {
 		r := r
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
@@ -97,11 +97,11 @@ func TestCreate_DuplicateUser(t *testing.T) {
 	}
 }
 
-func TestUpdateUserByEmail(t *testing.T) {
+func TestUsersUpdateUserByEmail(t *testing.T) {
 	t.Parallel()
 	f := userdomain.Fixture
 
-	for k, r := range subjects {
+	for k, r := range uSubjects {
 		r := r
 		t.Run(k, func(t *testing.T) {
 			for _, u := range f {

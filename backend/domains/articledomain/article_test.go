@@ -93,8 +93,6 @@ func TestNewArticle(t *testing.T) {
 			assert.Equal(t, tc.Description, a.Description())
 			assert.Equal(t, tc.Body, a.Body())
 			assert.Equal(t, tc.Tags, a.Tags())
-			assert.NotEmpty(t, a.CreatedAtUTC())
-			assert.Equal(t, a.UpdatedAtUTC(), a.CreatedAtUTC())
 			require.NotEmpty(t, a.Slug())
 		})
 	}

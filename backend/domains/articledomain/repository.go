@@ -2,8 +2,11 @@ package articledomain
 
 import "errors"
 
+// ErrNoAuthor indicates when the author of an Article can't be found.
+var ErrNoAuthor = errors.New("author not found")
+
 // ErrNotFound indicates the requested article was not found.
-var ErrNotFound = errors.New("user not found")
+var ErrNotFound = errors.New("article not found")
 
 // ErrDuplicateValue indicates the requested article could not be created because another article has the same slug.
 var ErrDuplicateValue = errors.New("article has a duplicate slug")
