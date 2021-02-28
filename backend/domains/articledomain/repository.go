@@ -23,7 +23,7 @@ type ListCriteria struct {
 // Repository allows performing abstracted I/O operations on articles.
 type Repository interface {
 	// Create creates a new article.
-	Create(*Article) (*AuthoredArticle, error)
+	CreateArticle(*Article) (*AuthoredArticle, error)
 	// LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
 	LatestArticlesByCriteria(ListCriteria) ([]*AuthoredArticle, error)
 	// GetArticleBySlug gets a single article with the given slug.
@@ -37,7 +37,7 @@ type Repository interface {
 	// then applies the provide mutations to its comments.
 	UpdateCommentsBySlug(string, func(*CommentedArticle) (*CommentedArticle, error)) (*Comment, error)
 	// DeleteArticleBySlug deletes the article with the provide slug if it exists.
-	Delete(*Article) error
+	DeleteArticle(*Article) error
 	// DistinctTags returns a distinct list of tags on articles
 	DistinctTags() ([]string, error)
 }

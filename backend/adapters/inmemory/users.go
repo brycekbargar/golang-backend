@@ -8,18 +8,18 @@ import (
 )
 
 // Create creates a new user.
-func (r *users) Create(u *userdomain.User) (*userdomain.User, error) {
-	mu.Lock()
-	defer mu.Unlock()
+func (r *implementation) CreateUser(u *userdomain.User) (*userdomain.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	for e, v := range r.repo {
+	for e, v := range r.users {
 		if e == strings.ToLower(u.Email()) ||
 			strings.ToLower(v.username) == strings.ToLower(u.Username()) {
 			return nil, userdomain.ErrDuplicateValue
 		}
 	}
 
-	r.repo[strings.ToLower(u.Email())] = userRecord{
+	r.users[strings.ToLower(u.Email())] = userRecord{
 		u.Email(),
 		u.Username(),
 		u.Bio(),
@@ -31,13 +31,13 @@ func (r *users) Create(u *userdomain.User) (*userdomain.User, error) {
 }
 
 // GetUserByEmail finds a single user based on their username.
-func (r *users) GetUserByEmail(e string) (*userdomain.User, error) {
+func (r *implementation) GetUserByEmail(e string) (*userdomain.User, error) {
 	return r.getUserByEmail(e, true)
 }
 
 // getUserByEmail finds a single user based on their username (without infinitely recursing)
-func (r *users) getUserByEmail(e string, recurse bool) (*userdomain.User, error) {
-	if u, ok := r.repo[strings.ToLower(e)]; ok {
+func (r *implementation) getUserByEmail(e string, recurse bool) (*userdomain.User, error) {
+	if u, ok := r.users[strings.ToLower(e)]; ok {
 
 		var uf []*userdomain.User
 		if recurse && len(u.following) > 0 {
@@ -67,8 +67,8 @@ func (r *users) getUserByEmail(e string, recurse bool) (*userdomain.User, error)
 }
 
 // GetUserByUsername finds a single user based on their email address.
-func (r *users) GetUserByUsername(un string) (*userdomain.User, error) {
-	for k, v := range r.repo {
+func (r *implementation) GetUserByUsername(un string) (*userdomain.User, error) {
+	for k, v := range r.users {
 		if strings.ToLower(v.username) == strings.ToLower(un) {
 			return r.GetUserByEmail(k)
 		}
@@ -79,9 +79,9 @@ func (r *users) GetUserByUsername(un string) (*userdomain.User, error) {
 
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
-func (r *users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdomain.User, error)) (*userdomain.User, error) {
-	mu.Lock()
-	defer mu.Unlock()
+func (r *implementation) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdomain.User, error)) (*userdomain.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	u, err := r.GetUserByEmail(e)
 	if err != nil {
@@ -99,20 +99,20 @@ func (r *users) UpdateUserByEmail(e string, uf func(*userdomain.User) (*userdoma
 		}
 	}
 
-	ru := r.repo[strings.ToLower(e)]
-	delete(r.repo, strings.ToLower(e))
+	ru := r.users[strings.ToLower(e)]
+	delete(r.users, strings.ToLower(e))
 
-	for e, v := range r.repo {
+	for e, v := range r.users {
 		if e == strings.ToLower(u.Email()) ||
 			strings.ToLower(v.username) == strings.ToLower(u.Username()) {
 
 			// Add the deleted user back if they've become a duplicate
-			r.repo[strings.ToLower(e)] = ru
+			r.users[strings.ToLower(e)] = ru
 			return nil, userdomain.ErrDuplicateValue
 		}
 	}
 
-	r.repo[strings.ToLower(u.Email())] = userRecord{
+	r.users[strings.ToLower(u.Email())] = userRecord{
 		u.Email(),
 		u.Username(),
 		u.Bio(),

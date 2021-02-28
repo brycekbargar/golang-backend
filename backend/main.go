@@ -8,10 +8,11 @@ import (
 
 func main() {
 	// TODO: Configure the port and secret
+	im := inmemory.NewInstance()
 	echohttp.Start(
 		ports.DefaultJWTConfig("Replace Me"),
 		4123,
-		inmemory.Users,
-		inmemory.Articles,
+		im.Users,
+		im.Articles,
 	)
 }

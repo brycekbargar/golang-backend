@@ -95,7 +95,7 @@ func (r *usersHandler) create(c echo.Context) error {
 			err)
 	}
 
-	if _, err := r.users.Create(created); err != nil {
+	if _, err := r.users.CreateUser(created); err != nil {
 		if err == userdomain.ErrDuplicateValue {
 			return echo.NewHTTPError(
 				http.StatusBadRequest,

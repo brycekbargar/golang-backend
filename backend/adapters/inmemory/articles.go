@@ -9,22 +9,22 @@ import (
 )
 
 // Create creates a new article.
-func (r *articles) Create(a *articledomain.Article) (*articledomain.AuthoredArticle, error) {
-	mu.Lock()
-	defer mu.Unlock()
+func (r *implementation) CreateArticle(a *articledomain.Article) (*articledomain.AuthoredArticle, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	for s := range r.repo {
+	for s := range r.articles {
 		if s == strings.ToLower(a.Slug()) {
 			return nil, articledomain.ErrDuplicateValue
 		}
 	}
 
-	if _, ok := Users.repo[strings.ToLower(a.AuthorEmail())]; !ok {
+	if _, ok := r.users[strings.ToLower(a.AuthorEmail())]; !ok {
 		return nil, articledomain.ErrNoAuthor
 	}
 
 	now := time.Now().UTC()
-	r.repo[strings.ToLower(a.Slug())] = articleRecord{
+	r.articles[strings.ToLower(a.Slug())] = articleRecord{
 		a.Slug(),
 		a.Title(),
 		a.Description(),
@@ -40,15 +40,15 @@ func (r *articles) Create(a *articledomain.Article) (*articledomain.AuthoredArti
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-func (r *articles) LatestArticlesByCriteria(articledomain.ListCriteria) ([]*articledomain.AuthoredArticle, error) {
+func (r *implementation) LatestArticlesByCriteria(articledomain.ListCriteria) ([]*articledomain.AuthoredArticle, error) {
 	return nil, nil
 }
 
 // GetArticleBySlug gets a single article with the given slug.
-func (r *articles) GetArticleBySlug(s string) (*articledomain.AuthoredArticle, error) {
-	if a, ok := r.repo[strings.ToLower(s)]; ok {
+func (r *implementation) GetArticleBySlug(s string) (*articledomain.AuthoredArticle, error) {
+	if a, ok := r.articles[strings.ToLower(s)]; ok {
 
-		aa, err := Users.getUserByEmail(a.author, false)
+		aa, err := r.getUserByEmail(a.author, false)
 		if err == userdomain.ErrNotFound {
 			return nil, articledomain.ErrNoAuthor
 		}
@@ -74,28 +74,28 @@ func (r *articles) GetArticleBySlug(s string) (*articledomain.AuthoredArticle, e
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
-func (r *articles) GetCommentsBySlug(string) (*articledomain.CommentedArticle, error) {
+func (r *implementation) GetCommentsBySlug(string) (*articledomain.CommentedArticle, error) {
 	return nil, nil
 }
 
 // UpdateArticleBySlug finds a single article based on its slug
 // then applies the provide mutations.
-func (r *articles) UpdateArticleBySlug(string, func(*articledomain.Article) (*articledomain.Article, error)) (*articledomain.AuthoredArticle, error) {
+func (r *implementation) UpdateArticleBySlug(string, func(*articledomain.Article) (*articledomain.Article, error)) (*articledomain.AuthoredArticle, error) {
 	return nil, nil
 }
 
 // UpdateCommentsBySlug finds a single article based on its slug
 // then applies the provide mutations to its comments.
-func (r *articles) UpdateCommentsBySlug(string, func(*articledomain.CommentedArticle) (*articledomain.CommentedArticle, error)) (*articledomain.Comment, error) {
+func (r *implementation) UpdateCommentsBySlug(string, func(*articledomain.CommentedArticle) (*articledomain.CommentedArticle, error)) (*articledomain.Comment, error) {
 	return nil, nil
 }
 
 // DeleteArticleBySlug deletes the article with the provide slug if it exists.
-func (r *articles) Delete(*articledomain.Article) error {
+func (r *implementation) DeleteArticle(*articledomain.Article) error {
 	return nil
 }
 
 // DistinctTags returns a distinct list of tags on articles
-func (r *articles) DistinctTags() ([]string, error) {
+func (r *implementation) DistinctTags() ([]string, error) {
 	return nil, nil
 }

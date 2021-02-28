@@ -3,24 +3,11 @@ package adapters_test
 import (
 	"testing"
 
-	"github.com/brycekbargar/realworld-backend/adapters/inmemory"
 	"github.com/brycekbargar/realworld-backend/domains/articledomain"
 	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-var aSubjects = map[string]articledomain.Repository{
-	"inmemory": inmemory.Articles,
-}
-
-func init() {
-	for _, r := range uSubjects {
-		for _, u := range userdomain.Fixture {
-			r.Create(u)
-		}
-	}
-}
 
 func TestArticlesCreate_RoundTrips(t *testing.T) {
 	t.Parallel()
@@ -33,12 +20,12 @@ func TestArticlesCreate_RoundTrips(t *testing.T) {
 		"misty tag 1", "misty tag 2", "misty tag 3")
 	require.NoError(t, err)
 
-	for k, r := range aSubjects {
+	for k, r := range subjects(t) {
 		r := r
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
 
-			ca, err := r.Create(na)
+			ca, err := r.Articles.CreateArticle(na)
 			require.NoError(t, err)
 
 			assert.Equal(t, na.Slug(), ca.Slug())
@@ -52,7 +39,7 @@ func TestArticlesCreate_RoundTrips(t *testing.T) {
 			assert.Empty(t, ca.Comments())
 			assert.Zero(t, ca.FavoriteCount())
 
-			fa, err := r.GetArticleBySlug(ca.Slug())
+			fa, err := r.Articles.GetArticleBySlug(ca.Slug())
 			require.NoError(t, err)
 
 			assert.Equal(t, na.Slug(), fa.Slug())
@@ -66,6 +53,5 @@ func TestArticlesCreate_RoundTrips(t *testing.T) {
 			assert.Empty(t, fa.Comments())
 			assert.Zero(t, fa.FavoriteCount())
 		})
-
 	}
 }

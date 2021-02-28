@@ -3,19 +3,25 @@ package inmemory
 import (
 	"sync"
 	"time"
+
+	"github.com/brycekbargar/realworld-backend/adapters"
 )
 
-var (
-	mu = &sync.Mutex{}
-	// Users is the instance of an in-memory implementation of the userdomain.Repository
-	Users = &users{
+// NewInstance creates a new instance of the In-Memory store with the repository interface implementations
+func NewInstance() *adapters.RepositoryImplementation {
+	i := &implementation{
+		&sync.Mutex{},
 		make(map[string]userRecord),
-	}
-	// Articles is the instance of an in-memory implementation of the articledomain.Repository
-	Articles = &articles{
 		make(map[string]articleRecord),
 	}
-)
+	return &adapters.RepositoryImplementation{Users: i, Articles: i}
+}
+
+type implementation struct {
+	mu       *sync.Mutex
+	users    map[string]userRecord
+	articles map[string]articleRecord
+}
 
 type userRecord struct {
 	email     string
@@ -24,11 +30,6 @@ type userRecord struct {
 	image     string
 	following string
 	password  string
-}
-
-// users is a (super inefficient) in-memory repository implementation for the usersdomain.Repository.
-type users struct {
-	repo map[string]userRecord
 }
 
 type articleRecord struct {
@@ -53,5 +54,4 @@ type commentRecord struct {
 
 // articles is a (super inefficient) in-memory repository implementation for the articledomain.Repository.
 type articles struct {
-	repo map[string]articleRecord
 }

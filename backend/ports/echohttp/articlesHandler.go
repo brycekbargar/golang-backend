@@ -288,7 +288,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			err)
 	}
 
-	created, err := h.articles.Create(toCreate)
+	created, err := h.articles.CreateArticle(toCreate)
 	if err != nil {
 		if err == userdomain.ErrDuplicateValue {
 			return echo.NewHTTPError(
@@ -380,7 +380,7 @@ func (h *articlesHandler) delete(ctx echo.Context) error {
 		return errors.New("articles can only be deleted by their author")
 	}
 
-	if err = h.articles.Delete(&ar.Article); err != nil {
+	if err = h.articles.DeleteArticle(&ar.Article); err != nil {
 		return err
 	}
 
