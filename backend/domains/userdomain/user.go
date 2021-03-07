@@ -1,163 +1,69 @@
 package userdomain
 
 import (
-	"errors"
-	"net/url"
-	"regexp"
+	"strings"
 
+	"github.com/asaskevich/govalidator"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // PasswordHash is an indicator that a string is a bcrypt hashed value.
-type PasswordHash = string
-
-// ErrInvalidEmail indicates when a User is instantiated with an invalid email.
-var ErrInvalidEmail = errors.New("email must be a valid email")
-
-// ErrInvalidImage indicates when a User is instantiated with an invalid image url.
-var ErrInvalidImage = errors.New("image must be a valid url")
-
-// ErrRequiredUserFields indicates when a User is instantiated without all the required fields.
-var ErrRequiredUserFields = errors.New("email, username, and password are required for users")
-
-// https://golangcode.com/validate-an-email-address/
-var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+type PasswordHash = []byte
 
 // User is an individual user in the application.
 // A user can be both the current client logged in (usually id'd by email)
 // and also an proile of someone that is followed (usually id'd by username).
 type User struct {
-	email     string
-	username  string
-	bio       string
-	image     string
-	following []*User
-	password  []byte
+	Email    string `valid:"email"`
+	Username string
+	Bio      string `valid:"-"`
+	Image    string `valid:"url,optional"`
+	Password PasswordHash
+}
+
+// Fanboy is User with the Users they follow by email
+type Fanboy struct {
+	User
+	Following map[string]interface{}
 }
 
 // NewUserWithPassword creates a new partially-hydrated User with the provide information.
 func NewUserWithPassword(email string, username string, password string) (*User, error) {
-	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
-		return nil, ErrRequiredUserFields
-	}
-
-	if !emailRegex.MatchString(email) {
-		return nil, ErrInvalidEmail
-	}
-
 	pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
 		return nil, err
 	}
 
-	return &User{
-		email:    email,
-		username: username,
-		password: pw,
-	}, nil
+	return (&User{
+		Email:    email,
+		Username: username,
+		Password: pw,
+	}).Validate()
 }
 
-// ExistingUser creates a fully-hydrated User with the provided information.
-func ExistingUser(email string, username string, bio string, image string, following []*User, password PasswordHash) (*User, error) {
-	if len(email) == 0 || len(username) == 0 || len(password) == 0 {
-		return nil, ErrRequiredUserFields
+// Validate returns the provided User if they are valid, otherwise error will contain validation errors.
+func (u *User) Validate() (*User, error) {
+	if v, err := govalidator.ValidateStruct(u); !v {
+		return nil, err
 	}
 
-	if !emailRegex.MatchString(email) {
-		return nil, ErrInvalidEmail
-	}
-
-	if len(image) > 0 {
-		if _, err := url.ParseRequestURI(image); err != nil {
-			return nil, ErrInvalidImage
-		}
-	}
-
-	return &User{
-		email,
-		username,
-		bio,
-		image,
-		following,
-		[]byte(password),
-	}, nil
+	return u, nil
 }
 
-// UpdatedUser merges the provided User with the (optional) new values provided.
-func UpdatedUser(user User, email string, username string, bio *string, image *string, password string) (*User, error) {
-	if len(email) > 0 {
-		if !emailRegex.MatchString(email) {
-			return nil, ErrInvalidEmail
-		}
-		user.email = email
-	}
-	if len(username) > 0 {
-		user.username = username
-	}
-	if bio != nil {
-		user.bio = *bio
-	}
-	if image != nil {
-		if len(*image) > 0 {
-			if _, err := url.ParseRequestURI(*image); err != nil {
-				return nil, ErrInvalidImage
-			}
-		}
-		user.image = *image
-	}
-	if len(password) > 0 {
-		pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-		if err != nil {
-			return nil, err
-		}
-		user.password = pw
+// SetPassword sets the password hash from the plain-text value
+func (u *User) SetPassword(password string) error {
+	pw, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	if err != nil {
+		return err
 	}
 
-	f := make([]*User, len(user.following))
-	copy(f, user.following)
-	user.following = f
-
-	return &user, nil
-}
-
-// Email is user's email address, which acts as their id.
-func (u User) Email() string {
-	return u.email
-}
-
-// Username is how they are displayed to other users and acts as a secondary id.
-func (u User) Username() string {
-	return u.username
-}
-
-// Bio is an optional blurb a user enters about themselves.
-func (u User) Bio() string {
-	return u.bio
-}
-
-// Image is the optional href to the user's profile picture.
-func (u User) Image() string {
-	return u.image
-}
-
-// Password is the user's hashed password.
-func (u User) Password() PasswordHash {
-	return string(u.password)
-}
-
-// FollowingEmails gets the emails of the other users this user is following.
-func (u User) FollowingEmails() []string {
-	es := make([]string, 0, len(u.following))
-	for _, fu := range u.following {
-		es = append(es, fu.email)
-	}
-
-	return es
+	u.Password = pw
+	return nil
 }
 
 // HasPassword checks if the provided password string matches the hash for the user.
 func (u *User) HasPassword(password string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword(u.password, []byte(password))
+	err := bcrypt.CompareHashAndPassword(u.Password, []byte(password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {
 		return false, nil
 	}
@@ -170,40 +76,24 @@ func (u *User) HasPassword(password string) (bool, error) {
 }
 
 // IsFollowing checks if the provided user is currently being followed by this user.
-func (u *User) IsFollowing(email string) bool {
-	if len(email) == 0 {
+func (u *Fanboy) IsFollowing(email string) bool {
+	if !govalidator.IsEmail(email) {
 		return false
 	}
 
-	for _, f := range u.following {
-		if f.email == email {
-			return true
-		}
-	}
-
-	return false
+	_, ok := u.Following[strings.ToLower(email)]
+	return ok
 }
 
 // StartFollowing tracks that the provided user should be followed.
-// This method is idempotent (but possibly not thread-safe).
-func (u *User) StartFollowing(fu *User) {
-	if fu == nil || u.IsFollowing(fu.email) {
+func (u *Fanboy) StartFollowing(email string) {
+	if !govalidator.IsEmail(email) {
 		return
 	}
-	u.following = append(u.following, fu)
+	u.Following[strings.ToLower(email)] = nil
 }
 
 // StopFollowing tracks that the provided user should be unfollowed.
-// This method is idempotent (but possibly not thread-safe).
-func (u *User) StopFollowing(su *User) {
-	if su == nil {
-		return
-	}
-
-	for i, f := range u.following {
-		if f.email == su.email {
-			u.following = append(u.following[:i], u.following[i+1:]...)
-			return
-		}
-	}
+func (u *Fanboy) StopFollowing(email string) {
+	delete(u.Following, strings.ToLower(email))
 }
