@@ -13,10 +13,13 @@ type Repository interface {
 	// Create creates a new user.
 	CreateUser(*User) (*User, error)
 	// GetUserByEmail finds a single user based on their email address.
-	GetUserByEmail(string) (*User, error)
+	GetUserByEmail(string) (*Fanboy, error)
 	// GetUserByUsername finds a single user based on their username.
 	GetUserByUsername(string) (*User, error)
 	// UpdateUserByEmail finds a single user based on their email address,
 	// then applies the provide mutations.
 	UpdateUserByEmail(string, func(*User) (*User, error)) (*User, error)
+	// UpdateFanboyByEmail finds a single user based on their email address,
+	// then applies the provide mutations (probably to the follower list).
+	UpdateFanboyByEmail(string, func(*Fanboy) (*Fanboy, error)) (*Fanboy, error)
 }

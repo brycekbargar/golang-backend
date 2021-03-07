@@ -141,18 +141,18 @@ func (r *usersHandler) login(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	token, err := makeJwt(r, authed.Email())
+	token, err := makeJwt(r, authed.Email)
 	if err != nil {
 		return err
 	}
 
 	return c.JSON(http.StatusOK, user{
 		userUser{
-			Email:    authed.Email(),
-			Username: authed.Username(),
+			Email:    authed.Email,
+			Username: authed.Username,
 			Token:    token,
-			Bio:      optional(authed.Bio()),
-			Image:    optional(authed.Image()),
+			Bio:      optional(authed.Bio),
+			Image:    optional(authed.Image),
 		},
 	})
 }
@@ -173,11 +173,11 @@ func (r *usersHandler) user(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, user{
 		userUser{
-			Email:    found.Email(),
-			Username: found.Username(),
+			Email:    found.Email,
+			Username: found.Username,
 			Token:    token.Raw,
-			Bio:      optional(found.Bio()),
-			Image:    optional(found.Image()),
+			Bio:      optional(found.Bio),
+			Image:    optional(found.Image),
 		},
 	})
 }
@@ -196,12 +196,22 @@ func (r *usersHandler) update(c echo.Context) error {
 	found, err := r.users.UpdateUserByEmail(
 		em,
 		func(u *userdomain.User) (*userdomain.User, error) {
-			return userdomain.UpdatedUser(*u,
-				b.User.Email,
-				b.User.Username,
-				b.User.Bio,
-				b.User.Image,
-				*b.User.Password)
+			if b.User.Email != "" {
+				u.Email = b.User.Email
+			}
+			if b.User.Username != "" {
+				u.Username = b.User.Username
+			}
+			if b.User.Password != nil && *b.User.Password != "" {
+				u.SetPassword(*b.User.Password)
+			}
+			if b.User.Bio != nil {
+				u.Bio = *b.User.Bio
+			}
+			if b.User.Image != nil {
+				u.Image = *b.User.Image
+			}
+			return u.Validate()
 		})
 	if err != nil {
 		if err == userdomain.ErrNotFound {
@@ -211,18 +221,18 @@ func (r *usersHandler) update(c echo.Context) error {
 	}
 
 	// Users can change their email so we need to make sure we're giving them a new token.
-	token, err := makeJwt(r, found.Email())
+	token, err := makeJwt(r, found.Email)
 	if err != nil {
 		return err
 	}
 
 	return c.JSON(http.StatusOK, user{
 		userUser{
-			Email:    found.Email(),
-			Username: found.Username(),
+			Email:    found.Email,
+			Username: found.Username,
 			Token:    token,
-			Bio:      optional(found.Bio()),
-			Image:    optional(found.Image()),
+			Bio:      optional(found.Bio),
+			Image:    optional(found.Image),
 		},
 	})
 }
@@ -262,14 +272,14 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 			return err
 		}
 
-		following = cu.IsFollowing(found.Email())
+		following = cu.IsFollowing(found.Email)
 	}
 
 	return c.JSON(http.StatusOK, profile{
 		profileUser{
-			Username:  found.Username(),
-			Bio:       found.Bio(),
-			Image:     found.Image(),
+			Username:  found.Username,
+			Bio:       found.Bio,
+			Image:     found.Image,
 			Following: following,
 		},
 	})
@@ -293,10 +303,10 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	_, err = r.users.UpdateUserByEmail(
+	_, err = r.users.UpdateFanboyByEmail(
 		em,
-		func(u *userdomain.User) (*userdomain.User, error) {
-			u.StartFollowing(fu)
+		func(u *userdomain.Fanboy) (*userdomain.Fanboy, error) {
+			u.StartFollowing(fu.Email)
 			return u, nil
 		})
 	if err != nil {
@@ -308,9 +318,9 @@ func (r *usersHandler) follow(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, profile{
 		profileUser{
-			Username:  fu.Username(),
-			Bio:       fu.Bio(),
-			Image:     fu.Image(),
+			Username:  fu.Username,
+			Bio:       fu.Bio,
+			Image:     fu.Image,
 			Following: true,
 		},
 	})
@@ -334,10 +344,10 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	_, err = r.users.UpdateUserByEmail(
+	_, err = r.users.UpdateFanboyByEmail(
 		em,
-		func(u *userdomain.User) (*userdomain.User, error) {
-			u.StopFollowing(fu)
+		func(u *userdomain.Fanboy) (*userdomain.Fanboy, error) {
+			u.StopFollowing(fu.Email)
 			return u, nil
 		})
 	if err != nil {
@@ -349,9 +359,9 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, profile{
 		profileUser{
-			Username:  fu.Username(),
-			Bio:       fu.Bio(),
-			Image:     fu.Image(),
+			Username:  fu.Username,
+			Bio:       fu.Bio,
+			Image:     fu.Image,
 			Following: false,
 		},
 	})
