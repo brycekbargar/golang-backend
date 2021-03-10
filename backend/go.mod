@@ -3,7 +3,7 @@ module github.com/brycekbargar/realworld-backend
 go 1.15
 
 require (
-	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
+	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gosimple/slug v1.9.0
