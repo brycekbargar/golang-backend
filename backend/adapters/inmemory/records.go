@@ -32,6 +32,16 @@ type userRecord struct {
 	password  []byte
 }
 
+func (u userRecord) Email() string {
+	return u.email
+}
+func (u userRecord) Bio() string {
+	return u.bio
+}
+func (u userRecord) Image() string {
+	return u.image
+}
+
 type articleRecord struct {
 	slug         string
 	title        string

@@ -82,7 +82,7 @@ type list struct {
 
 func (h *articlesHandler) list(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	var u *userdomain.User
+	var u *userdomain.Fanboy
 	if ok {
 		u, _ = h.users.GetUserByEmail(em)
 	}
@@ -95,13 +95,13 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 	a := ctx.QueryParam("author")
 	if len(a) > 0 {
 		if ae, err := h.users.GetUserByUsername(a); err == nil {
-			lc.AuthorEmails = []string{ae.Email()}
+			lc.AuthorEmails = []string{ae.Email}
 		}
 	}
 	f := ctx.QueryParam("favorited")
 	if len(f) > 0 {
 		if fe, err := h.users.GetUserByUsername(f); err == nil {
-			lc.FavoritedByUserEmail = fe.Email()
+			lc.FavoritedByUserEmail = fe.Email
 		}
 	}
 	l := ctx.QueryParam("limit")
@@ -126,13 +126,13 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 
 	for _, a := range al {
 		aa := articleArticle{
-			Slug:           a.Slug(),
-			Title:          a.Title(),
-			Description:    a.Description(),
-			Body:           a.Body(),
-			TagList:        a.Tags(),
-			CreatedAt:      a.CreatedAtUTC(),
-			UpdatedAt:      a.UpdatedAtUTC(),
+			Slug:           a.Slug,
+			Title:          a.Title,
+			Description:    a.Description,
+			Body:           a.Body,
+			TagList:        a.TagList,
+			CreatedAt:      a.CreatedAtUTC,
+			UpdatedAt:      a.UpdatedAtUTC,
 			FavoritesCount: a.FavoriteCount(),
 			Author: author{
 				Username: a.Email(),
@@ -141,7 +141,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 			},
 		}
 		if u != nil {
-			aa.Favorited = a.IsAFavoriteOf(u.Email())
+			aa.Favorited = a.IsAFavoriteOf(u.Email)
 			aa.Author.Following = u.IsFollowing(a.Email())
 		}
 
@@ -184,13 +184,13 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 
 	for _, a := range al {
 		aa := articleArticle{
-			Slug:           a.Slug(),
-			Title:          a.Title(),
-			Description:    a.Description(),
-			Body:           a.Body(),
-			TagList:        a.Tags(),
-			CreatedAt:      a.CreatedAtUTC(),
-			UpdatedAt:      a.UpdatedAtUTC(),
+			Slug:           a.Slug,
+			Title:          a.Title,
+			Description:    a.Description,
+			Body:           a.Body,
+			TagList:        a.TagList,
+			CreatedAt:      a.CreatedAtUTC,
+			UpdatedAt:      a.UpdatedAtUTC,
 			FavoritesCount: a.FavoriteCount(),
 			Author: author{
 				Username: a.Email(),
@@ -199,7 +199,7 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 			},
 		}
 		if u != nil {
-			aa.Favorited = a.IsAFavoriteOf(u.Email())
+			aa.Favorited = a.IsAFavoriteOf(u.Email)
 			aa.Author.Following = u.IsFollowing(a.Email())
 		}
 
@@ -215,7 +215,7 @@ type article struct {
 
 func (h *articlesHandler) article(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	var u *userdomain.User
+	var u *userdomain.Fanboy
 	if ok {
 		u, _ = h.users.GetUserByEmail(em)
 	}
@@ -228,13 +228,13 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 
 	res := article{
 		articleArticle{
-			Slug:           ar.Slug(),
-			Title:          ar.Title(),
-			Description:    ar.Description(),
-			Body:           ar.Body(),
-			TagList:        ar.Tags(),
-			CreatedAt:      ar.CreatedAtUTC(),
-			UpdatedAt:      ar.UpdatedAtUTC(),
+			Slug:           ar.Slug,
+			Title:          ar.Title,
+			Description:    ar.Description,
+			Body:           ar.Body,
+			TagList:        ar.TagList,
+			CreatedAt:      ar.CreatedAtUTC,
+			UpdatedAt:      ar.UpdatedAtUTC,
 			FavoritesCount: ar.FavoriteCount(),
 			Author: author{
 				Username: ar.Email(),
@@ -244,7 +244,7 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 		},
 	}
 	if u != nil {
-		res.Article.Favorited = ar.IsAFavoriteOf(u.Email())
+		res.Article.Favorited = ar.IsAFavoriteOf(u.Email)
 		res.Article.Author.Following = u.IsFollowing(ar.Email())
 	}
 
@@ -300,19 +300,19 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusCreated, article{
 		articleArticle{
-			Slug:           created.Slug(),
-			Title:          created.Title(),
-			Description:    created.Description(),
-			Body:           created.Body(),
-			TagList:        created.Tags(),
-			CreatedAt:      created.CreatedAtUTC(),
-			UpdatedAt:      created.UpdatedAtUTC(),
+			Slug:           created.Slug,
+			Title:          created.Title,
+			Description:    created.Description,
+			Body:           created.Body,
+			TagList:        created.TagList,
+			CreatedAt:      created.CreatedAtUTC,
+			UpdatedAt:      created.UpdatedAtUTC,
 			Favorited:      false,
 			FavoritesCount: created.FavoriteCount(),
 			Author: author{
-				Username:  u.Email(),
-				Bio:       u.Bio(),
-				Image:     u.Image(),
+				Username:  u.Email,
+				Bio:       u.Bio,
+				Image:     u.Image,
 				Following: false,
 			},
 		},
@@ -333,27 +333,35 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 	updated, err := h.articles.UpdateArticleBySlug(
 		ctx.Param("slug"),
 		func(a *articledomain.Article) (*articledomain.Article, error) {
-			if a.AuthorEmail() != em {
+			if a.AuthorEmail != em {
 				return nil, errors.New("articles can only be updated by their author")
 			}
-			return articledomain.UpdatedArticle(*a,
-				b.Article.Title,
-				b.Article.Description,
-				b.Article.Body)
+			if b.Article.Title != "" {
+				a.SetTitle(b.Article.Title)
+			}
+			if b.Article.Description != "" {
+				a.Description = b.Article.Description
+			}
+			if b.Article.Body != "" {
+				a.Body = b.Article.Body
+			}
+
+			return a.Validate()
 		})
+
 	if err != nil {
 		return err
 	}
 
 	return ctx.JSON(http.StatusOK, article{
 		articleArticle{
-			Slug:           updated.Slug(),
-			Title:          updated.Title(),
-			Description:    updated.Description(),
-			Body:           updated.Body(),
-			TagList:        updated.Tags(),
-			CreatedAt:      updated.CreatedAtUTC(),
-			UpdatedAt:      updated.UpdatedAtUTC(),
+			Slug:           updated.Slug,
+			Title:          updated.Title,
+			Description:    updated.Description,
+			Body:           updated.Body,
+			TagList:        updated.TagList,
+			CreatedAt:      updated.CreatedAtUTC,
+			UpdatedAt:      updated.UpdatedAtUTC,
 			Favorited:      false,
 			FavoritesCount: updated.FavoriteCount(),
 			Author: author{
@@ -376,7 +384,7 @@ func (h *articlesHandler) delete(ctx echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if ar.AuthorEmail() != em {
+	if ar.AuthorEmail != em {
 		return errors.New("articles can only be deleted by their author")
 	}
 
@@ -401,7 +409,7 @@ type commentList struct {
 
 func (h *articlesHandler) commentList(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	var u *userdomain.User
+	var u *userdomain.Fanboy
 	if ok {
 		u, _ = h.users.GetUserByEmail(em)
 	}
@@ -412,22 +420,22 @@ func (h *articlesHandler) commentList(ctx echo.Context) error {
 	}
 
 	res := commentList{
-		make([]commentComment, 0, len(ar.Comments())),
+		make([]commentComment, 0, len(ar.Comments)),
 	}
-	for _, c := range ar.Comments() {
-		if a, err := h.users.GetUserByEmail(c.AuthorEmail()); err == nil {
+	for _, c := range ar.Comments {
+		if a, err := h.users.GetUserByEmail(c.AuthorEmail); err == nil {
 			// This is just ignoring comments where we can't get the author
 			// That's probably wrong?
 			res.Comments = append(res.Comments, commentComment{
-				c.ID(),
-				c.CreatedAtUTC(),
-				c.UpdatedAtUTC(),
-				c.Body(),
+				c.ID,
+				c.CreatedAtUTC,
+				c.CreatedAtUTC,
+				c.Body,
 				author{
-					a.Username(),
-					a.Bio(),
-					a.Image(),
-					u.IsFollowing(a.Email()),
+					a.Username,
+					a.Bio,
+					a.Image,
+					u.IsFollowing(a.Email),
 				},
 			})
 		}
@@ -472,14 +480,14 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusCreated, comment{
 		commentComment{
-			newc.ID(),
-			newc.CreatedAtUTC(),
-			newc.UpdatedAtUTC(),
-			newc.Body(),
+			newc.ID,
+			newc.CreatedAtUTC,
+			newc.CreatedAtUTC,
+			newc.Body,
 			author{
-				u.Username(),
-				u.Bio(),
-				u.Image(),
+				u.Username,
+				u.Bio,
+				u.Image,
 				false,
 			},
 		},
@@ -498,8 +506,8 @@ func (h *articlesHandler) removeComment(ctx echo.Context) error {
 	_, err := h.articles.UpdateCommentsBySlug(
 		ctx.Param("slug"),
 		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
-			for _, c := range a.Comments() {
-				if c.ID() == cid && c.AuthorEmail() != em {
+			for _, c := range a.Comments {
+				if c.ID == cid && c.AuthorEmail != em {
 					return nil, errors.New("comments can only be deleted by their author")
 				}
 			}
@@ -533,13 +541,13 @@ func (h *articlesHandler) favorite(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, article{
 		articleArticle{
-			Slug:           updated.Slug(),
-			Title:          updated.Title(),
-			Description:    updated.Description(),
-			Body:           updated.Body(),
-			TagList:        updated.Tags(),
-			CreatedAt:      updated.CreatedAtUTC(),
-			UpdatedAt:      updated.UpdatedAtUTC(),
+			Slug:           updated.Slug,
+			Title:          updated.Title,
+			Description:    updated.Description,
+			Body:           updated.Body,
+			TagList:        updated.TagList,
+			CreatedAt:      updated.CreatedAtUTC,
+			UpdatedAt:      updated.UpdatedAtUTC,
 			Favorited:      true,
 			FavoritesCount: updated.FavoriteCount(),
 			Author: author{
@@ -571,13 +579,13 @@ func (h *articlesHandler) unfavorite(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, article{
 		articleArticle{
-			Slug:           updated.Slug(),
-			Title:          updated.Title(),
-			Description:    updated.Description(),
-			Body:           updated.Body(),
-			TagList:        updated.Tags(),
-			CreatedAt:      updated.CreatedAtUTC(),
-			UpdatedAt:      updated.UpdatedAtUTC(),
+			Slug:           updated.Slug,
+			Title:          updated.Title,
+			Description:    updated.Description,
+			Body:           updated.Body,
+			TagList:        updated.TagList,
+			CreatedAt:      updated.CreatedAtUTC,
+			UpdatedAt:      updated.UpdatedAtUTC,
 			Favorited:      false,
 			FavoritesCount: updated.FavoriteCount(),
 			Author: author{

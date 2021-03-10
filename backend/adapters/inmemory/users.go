@@ -126,7 +126,6 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*userdomain.Use
 
 func (r *implementation) UpdateFanboyByEmail(e string, update func(*userdomain.Fanboy) (*userdomain.Fanboy, error)) error {
 	var uf *userdomain.Fanboy
-
 	err := func() error {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -152,10 +151,11 @@ func (r *implementation) UpdateFanboyByEmail(e string, update func(*userdomain.F
 	}()
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return r.UpdateUserByEmail(e, func(*userdomain.User) (*userdomain.User, error) {
+	_, err = r.UpdateUserByEmail(e, func(*userdomain.User) (*userdomain.User, error) {
 		return &uf.User, nil
 	})
+	return err
 }

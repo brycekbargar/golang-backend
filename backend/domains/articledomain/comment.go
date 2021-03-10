@@ -1,70 +1,44 @@
 package articledomain
 
 import (
-	"errors"
 	"time"
+
+	"github.com/asaskevich/govalidator"
 )
 
-// ErrRequiredCommentFields indicates when a Comment is instantiated without all the required fields.
-var ErrRequiredCommentFields = errors.New("id, body, and author are required for comments")
+func init() {
+	govalidator.CustomTypeTagMap.Set("positive",
+		govalidator.CustomTypeValidator(func(i interface{}, o interface{}) bool {
+			switch num := i.(type) {
+			case int:
+				return num > 0
+			default:
+				return false
+			}
+		}))
+}
 
 // Comment is an individual comment associated with a single Article.
 type Comment struct {
-	id           int
-	body         string
-	createdAtUTC time.Time
-	author       string
+	ID           int `valid:"optional,positive"`
+	Body         string
+	CreatedAtUTC time.Time `valid:"-"`
+	AuthorEmail  string    `valid:"email"`
 }
 
-func newComment(id int, body string, author string) (*Comment, error) {
-	if id == 0 || len(body) == 0 || len(author) == 0 {
-		return nil, ErrRequiredCommentFields
+// NewComment creates a new comment with the provided information and defaults for the rest
+func NewComment(body string, author string) (*Comment, error) {
+	return (&Comment{
+		Body:        body,
+		AuthorEmail: author,
+	}).Validate()
+}
+
+// Validate returns the provided Article if it is valid, otherwise error will contain validation errors.
+func (c *Comment) Validate() (*Comment, error) {
+	if v, err := govalidator.ValidateStruct(c); !v {
+		return nil, err
 	}
 
-	return &Comment{
-		id,
-		body,
-		time.Now().UTC(),
-		author,
-	}, nil
-}
-
-// ExistingComment creates a comment with the provided information.
-func ExistingComment(id int, body string, author string, createdAt time.Time) (*Comment, error) {
-	if id == 0 || len(body) == 0 || len(author) == 0 {
-		return nil, ErrRequiredCommentFields
-	}
-
-	return &Comment{
-		id,
-		body,
-		createdAt,
-		author,
-	}, nil
-}
-
-// ID is the identifier (not globally unique) of the comment on the parent article.
-func (c Comment) ID() int {
-	return c.id
-}
-
-// Body is the comment's content.
-func (c Comment) Body() string {
-	return c.body
-}
-
-// CreatedAtUTC is the system generated time (in utc) when the comment was created.
-func (c Comment) CreatedAtUTC() time.Time {
-	return c.createdAtUTC
-}
-
-// UpdatedAtUTC is the system generated time (in utc) when the article was last updated.
-// Currently updating comments isn't supported so this will always be the CreateAtUTC time.
-func (c Comment) UpdatedAtUTC() time.Time {
-	return c.createdAtUTC
-}
-
-// AuthorEmail is the email (the identifier) of the user that created the Comment.
-func (c Comment) AuthorEmail() string {
-	return c.author
+	return c, nil
 }

@@ -303,7 +303,7 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	_, err = r.users.UpdateFanboyByEmail(
+	err = r.users.UpdateFanboyByEmail(
 		em,
 		func(u *userdomain.Fanboy) (*userdomain.Fanboy, error) {
 			u.StartFollowing(fu.Email)
@@ -344,7 +344,7 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	_, err = r.users.UpdateFanboyByEmail(
+	err = r.users.UpdateFanboyByEmail(
 		em,
 		func(u *userdomain.Fanboy) (*userdomain.Fanboy, error) {
 			u.StopFollowing(fu.Email)
