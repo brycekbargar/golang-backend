@@ -29,7 +29,7 @@ type userRecord struct {
 	bio       string
 	image     string
 	following string
-	password  string
+	password  []byte
 }
 
 type articleRecord struct {

@@ -21,5 +21,5 @@ type Repository interface {
 	UpdateUserByEmail(string, func(*User) (*User, error)) (*User, error)
 	// UpdateFanboyByEmail finds a single user based on their email address,
 	// then applies the provide mutations (probably to the follower list).
-	UpdateFanboyByEmail(string, func(*Fanboy) (*Fanboy, error)) (*Fanboy, error)
+	UpdateFanboyByEmail(string, func(*Fanboy) (*Fanboy, error)) error
 }
