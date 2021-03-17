@@ -10,70 +10,124 @@ import (
 
 func TestNewArticle(t *testing.T) {
 	t.Parallel()
-	f := articledomain.Fixture
+
+	t.Run("Title is slugified", func(t *testing.T) {
+		t.Parallel()
+
+		a, err := articledomain.NewArticle(
+			"tough title",
+			"tough description",
+			"tough body",
+			"author@tough.com",
+			"tough tag 1",
+			"tough tag 2")
+		require.NoError(t, err)
+		assert.NotEqual(t, "tough title", a.Slug)
+
+	})
+
+	t.Run("Validation happens", func(t *testing.T) {
+		t.Parallel()
+
+		a, err := articledomain.NewArticle(
+			"purple title",
+			"purple description",
+			"purple body",
+			"purple is not an email",
+			"purple tag 1",
+			"purple tag 2")
+		assert.Error(t, err)
+		assert.Nil(t, a)
+	})
+}
+
+func TestSetTitle(t *testing.T) {
+	t.Parallel()
+
+	a, err := articledomain.NewArticle(
+		"fine title",
+		"fine description",
+		"fine body",
+		"author@fine.com",
+		"fine tag 1",
+		"fine tag 2")
+	require.NoError(t, err)
+	assert.Equal(t, "fine-title", a.Slug)
+
+	a.SetTitle("puzzling title")
+	assert.Equal(t, "puzzling-title", a.Slug)
+}
+func TestValidate(t *testing.T) {
+	t.Parallel()
 
 	cases := []struct {
-		Name          string
-		Title         string
-		Description   string
-		Body          string
-		Author        string
-		Tags          []string
-		ExpectedError error
+		Name    string
+		Article *articledomain.Article
 	}{
 		{
-			"Created (with slug)",
-			f[0].Title(),
-			f[0].Description(),
-			f[0].Body(),
-			f[0].AuthorEmail(),
-			f[0].Tags(),
-			nil,
+			"Invalid Slug",
+			&articledomain.Article{
+				Slug:        "%#&@*( def not a slug",
+				Title:       "wanting title",
+				Description: "wanting description",
+				Body:        "wanting body",
+				AuthorEmail: "author@wanting.com",
+			},
 		},
 		{
-			"Invalid Slug",
-			"*$*#()%)",
-			f[0].Description(),
-			f[0].Body(),
-			f[0].AuthorEmail(),
-			f[0].Tags(),
-			articledomain.ErrInvalidSlug,
+			"Missing Slug",
+			&articledomain.Article{
+				Title:       "garrulous title",
+				Description: "garrulous description",
+				Body:        "garrulous body",
+				AuthorEmail: "author@garrulous.com",
+			},
 		},
 		{
 			"Missing Title",
-			"",
-			f[0].Description(),
-			f[0].Body(),
-			f[0].AuthorEmail(),
-			f[0].Tags(),
-			articledomain.ErrRequiredArticleFields,
+			&articledomain.Article{
+				Slug:        "feeble-slug",
+				Description: "feeble description",
+				Body:        "feeble body",
+				AuthorEmail: "author@feeble.com",
+			},
 		},
 		{
 			"Missing Description",
-			f[0].Title(),
-			"",
-			f[0].Body(),
-			f[0].AuthorEmail(),
-			f[0].Tags(),
-			articledomain.ErrRequiredArticleFields,
+			&articledomain.Article{
+				Slug:        "majestic-slug",
+				Title:       "majestic title",
+				Body:        "majestic body",
+				AuthorEmail: "author@majestic.com",
+			},
 		},
 		{
 			"Missing Body",
-			f[0].Title(),
-			f[0].Description(),
-			"",
-			f[0].AuthorEmail(),
-			f[0].Tags(),
-			articledomain.ErrRequiredArticleFields,
+			&articledomain.Article{
+				Slug:        "thundering-slug",
+				Title:       "thundering title",
+				Description: "thundering description",
+				AuthorEmail: "author@thundering.com",
+			},
 		},
 		{
-			"Created (with no tags)",
-			f[0].Title(),
-			f[0].Description(),
-			f[0].Body(),
-			f[0].AuthorEmail(),
-			make([]string, 0),
-			nil,
+			"Missing Author",
+			&articledomain.Article{
+				Slug:        "noxious-slug",
+				Title:       "noxious title",
+				Description: "noxious description",
+				Body:        "noxious body",
+			},
+		},
+		{
+			"Invalid Author",
+			&articledomain.Article{
+				Slug:        "daffy-slug",
+				Title:       "daffy title",
+				Description: "daffy description",
+				Body:        "daffy body",
+				AuthorEmail: "not a daffy email",
+			},
 		},
 	}
 
@@ -82,139 +136,74 @@ func TestNewArticle(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			a, err := articledomain.NewArticle(tc.Title, tc.Description, tc.Body, tc.Author, tc.Tags...)
-			if tc.ExpectedError != nil {
-				assert.EqualError(t, err, tc.ExpectedError.Error())
-				return
-			}
-			require.NoError(t, err)
-
-			assert.Equal(t, tc.Title, a.Title())
-			assert.Equal(t, tc.Description, a.Description())
-			assert.Equal(t, tc.Body, a.Body())
-			assert.Equal(t, tc.Tags, a.Tags())
-			require.NotEmpty(t, a.Slug())
+			u, err := tc.Article.Validate()
+			assert.Error(t, err)
+			assert.Nil(t, u)
 		})
 	}
-}
 
-func TestUpdateArticle(t *testing.T) {
-	t.Parallel()
-	f := articledomain.Fixture
+	t.Run("Ok", func(t *testing.T) {
+		t.Parallel()
 
-	cases := []struct {
-		Name                string
-		UpdatedTitle        string
-		ExpectedTitle       string
-		ExpectedSlug        string
-		UpdatedDescription  string
-		ExpectedDescription string
-		UpdatedBody         string
-		ExpectedBody        string
-		ExpectedError       error
-	}{
-		{
-			"All New Values",
-			"whimsical title",
-			"whimsical title",
-			"whimsical-title",
-			"whimsical description",
-			"whimsical description",
-			"whimsical body",
-			"whimsical body",
-			nil,
-		},
-		{
-			"No New Values",
-			"",
-			f[2].Title(),
-			f[2].Slug(),
-			"",
-			f[2].Description(),
-			"",
-			f[2].Body(),
-			nil,
-		},
-		{
-			"Invalid Slug",
-			"%*($)",
-			"n/a",
-			"n/a",
-			"",
-			"n/a",
-			"",
-			"n/a",
-			articledomain.ErrInvalidSlug,
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
-
-			a, err := articledomain.UpdatedArticle(
-				*f[2],
-				tc.UpdatedTitle,
-				tc.UpdatedDescription,
-				tc.UpdatedBody,
-			)
-
-			if tc.ExpectedError != nil {
-				assert.EqualError(t, err, tc.ExpectedError.Error())
-				return
-			}
-			require.NoError(t, err)
-
-			assert.Equal(t, tc.ExpectedTitle, a.Title())
-			assert.Equal(t, tc.ExpectedSlug, a.Slug())
-			assert.Equal(t, tc.ExpectedDescription, a.Description())
-			assert.Equal(t, tc.ExpectedBody, a.Body())
-			assert.True(t, a.UpdatedAtUTC().After(a.CreatedAtUTC()))
-			assert.Equal(t, f[2].UpdatedAtUTC(), f[2].CreatedAtUTC(),
-				"because the original should be unmodified during update")
-		})
-	}
-}
-
-func TestAddComment(t *testing.T) {
-	t.Parallel()
-	f := articledomain.Fixture
-	err := f[0].AddComment("mysterious comment", "mysterious author")
-
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, len(f[0].Comments()))
-	for _, c := range f[0].Comments() {
-		// the last comment in this fixture'd article has id 6
-		if c.ID() == 7 {
-			assert.Equal(t, "mysterious comment", c.Body())
-			assert.Equal(t, "mysterious author", c.AuthorEmail())
-			assert.NotEmpty(t, c.CreatedAtUTC())
-			assert.Equal(t, c.UpdatedAtUTC(), c.CreatedAtUTC())
-			return
+		u := &articledomain.Article{
+			Slug:        "perpetual-slug",
+			Title:       "perpetual title",
+			Description: "perpetual description",
+			Body:        "perpetual body",
+			AuthorEmail: "author@perpetual.com",
 		}
+
+		vu, err := u.Validate()
+		require.NoError(t, err)
+		assert.Same(t, u, vu)
+	})
+}
+
+func TestArticle_Comments(t *testing.T) {
+	t.Parallel()
+
+	ca := articledomain.CommentedArticle{
+		Article: articledomain.Article{},
+		Comments: []*articledomain.Comment{
+			{ID: 5},
+			{ID: 8},
+			{ID: 13},
+			{ID: 21},
+		},
 	}
 
-	assert.Fail(t, "because created comment wasn't found")
+	err := ca.AddComment("mysterious title", "mysterious body")
+	require.NoError(t, err)
+	assert.Len(t, ca.Comments, 5)
+
+	err = ca.AddComment("", "")
+	assert.Error(t, err)
+	assert.Len(t, ca.Comments, 5)
+
+	ca.RemoveComment(8)
+	assert.Len(t, ca.Comments, 4)
+	ca.RemoveComment(8)
+	assert.Len(t, ca.Comments, 4)
 }
-
-func TestRemoveComment(t *testing.T) {
-	t.Parallel()
-	f := articledomain.Fixture
-	f[1].RemoveComment(4)
-	assert.Equal(t, 2, len(f[1].Comments()))
-}
-
-func TestIsFavoriteOf(t *testing.T) {
+func TestArticle_Favorites(t *testing.T) {
 	t.Parallel()
 
-	f := articledomain.Fixture
-	assert.True(t, f[1].IsAFavoriteOf("complex@parched.com"))
-	f[1].Unfavorite("complex@parched.com")
-	assert.False(t, f[1].IsAFavoriteOf("complex@parched.com"))
-	assert.Equal(t, 2, f[1].FavoriteCount())
-	f[1].Favorite("lucky@unsuitable.com")
-	assert.True(t, f[1].IsAFavoriteOf("lucky@unsuitable.com"))
-	assert.Equal(t, 3, f[1].FavoriteCount())
+	a := articledomain.Article{}
+
+	a.Favorite("user@full.com")
+	a.Favorite("user@full.com")
+	assert.Equal(t, 1, a.FavoriteCount())
+
+	a.Favorite("user@slim.com")
+	a.Favorite("user@oceanic.com")
+	assert.Equal(t, 3, a.FavoriteCount())
+
+	a.Favorite("not mail")
+	assert.Equal(t, 3, a.FavoriteCount())
+
+	assert.True(t, a.IsAFavoriteOf("user@slim.com"))
+	a.Unfavorite("user@slim.com")
+	a.Unfavorite("user@slim.com")
+	assert.False(t, a.IsAFavoriteOf("user@slim.com"))
+	assert.Equal(t, 2, a.FavoriteCount())
 }

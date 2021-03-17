@@ -57,7 +57,7 @@ func NewArticle(title string, description string, body string, authorEmail strin
 	}).Validate()
 }
 
-// Validatereturns the provided Article if it is valid, otherwise error will contain validation errors.
+// Validate returns the provided Article if it is valid, otherwise error will contain validation errors.
 func (a *Article) Validate() (*Article, error) {
 	if v, err := govalidator.ValidateStruct(a); !v {
 		return nil, err
