@@ -43,14 +43,14 @@ func (r *implementation) GetUserByEmail(e string) (*userdomain.Fanboy, error) {
 		}
 
 		return &userdomain.Fanboy{
-			userdomain.User{
-				u.email,
-				u.username,
-				u.bio,
-				u.image,
-				u.password,
+			User: userdomain.User{
+				Email:    u.email,
+				Username: u.username,
+				Bio:      u.bio,
+				Image:    u.image,
+				Password: u.password,
 			},
-			follows,
+			Following: follows,
 		}, nil
 	}
 

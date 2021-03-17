@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/brycekbargar/realworld-backend/domains/articledomain"
-	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 )
 
 // Create creates a new article.
@@ -14,29 +13,29 @@ func (r *implementation) CreateArticle(a *articledomain.Article) (*articledomain
 	defer r.mu.Unlock()
 
 	for s := range r.articles {
-		if s == strings.ToLower(a.Slug()) {
+		if s == strings.ToLower(a.Slug) {
 			return nil, articledomain.ErrDuplicateValue
 		}
 	}
 
-	if _, ok := r.users[strings.ToLower(a.AuthorEmail())]; !ok {
+	if _, ok := r.users[strings.ToLower(a.AuthorEmail)]; !ok {
 		return nil, articledomain.ErrNoAuthor
 	}
 
 	now := time.Now().UTC()
-	r.articles[strings.ToLower(a.Slug())] = articleRecord{
-		a.Slug(),
-		a.Title(),
-		a.Description(),
-		a.Body(),
-		a.Tags(),
+	r.articles[strings.ToLower(a.Slug)] = articleRecord{
+		a.Slug,
+		a.Title,
+		a.Description,
+		a.Body,
+		a.TagList,
 		now,
 		now,
-		a.AuthorEmail(),
+		a.AuthorEmail,
 		make([]*commentRecord, 0),
 		map[string]interface{}{},
 	}
-	return r.GetArticleBySlug(a.Slug())
+	return r.GetArticleBySlug(a.Slug)
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
@@ -48,26 +47,25 @@ func (r *implementation) LatestArticlesByCriteria(articledomain.ListCriteria) ([
 func (r *implementation) GetArticleBySlug(s string) (*articledomain.AuthoredArticle, error) {
 	if a, ok := r.articles[strings.ToLower(s)]; ok {
 
-		aa, err := r.getUserByEmail(a.author, false)
-		if err == userdomain.ErrNotFound {
+		aa, ok := r.users[strings.ToLower(a.author)]
+		if !ok {
 			return nil, articledomain.ErrNoAuthor
 		}
-		if err != nil {
-			return nil, err
-		}
 
-		return articledomain.ExistingArticle(
-			a.slug,
-			a.title,
-			a.description,
-			a.body,
-			a.tagList,
-			a.createdAtUTC,
-			a.updatedAtUTC,
-			aa,
-			make([]*articledomain.Comment, 0),
-			make([]string, 0),
-		)
+		return &articledomain.AuthoredArticle{
+			Article: articledomain.Article{
+				Slug:         a.slug,
+				Title:        a.title,
+				Description:  a.description,
+				Body:         a.body,
+				TagList:      a.tagList,
+				CreatedAtUTC: a.createdAtUTC,
+				UpdatedAtUTC: a.updatedAtUTC,
+				AuthorEmail:  a.author,
+				FavoritedBy:  a.favoritedBy,
+			},
+			Author: aa,
+		}, nil
 	}
 
 	return nil, articledomain.ErrNotFound

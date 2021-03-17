@@ -41,7 +41,7 @@ func TestNewArticle(t *testing.T) {
 	})
 }
 
-func TestSetTitle(t *testing.T) {
+func TestArticle_SetTitle(t *testing.T) {
 	t.Parallel()
 
 	a, err := articledomain.NewArticle(
