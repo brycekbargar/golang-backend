@@ -57,7 +57,7 @@ func TestSetTitle(t *testing.T) {
 	a.SetTitle("puzzling title")
 	assert.Equal(t, "puzzling-title", a.Slug)
 }
-func TestValidate(t *testing.T) {
+func TestArticle_Validate(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -67,7 +67,7 @@ func TestValidate(t *testing.T) {
 		{
 			"Invalid Slug",
 			&articledomain.Article{
-				Slug:        "%#&@*( def not a slug",
+				Slug:        "%#&@*( def not a wanting slug",
 				Title:       "wanting title",
 				Description: "wanting description",
 				Body:        "wanting body",
@@ -145,7 +145,7 @@ func TestValidate(t *testing.T) {
 	t.Run("Ok", func(t *testing.T) {
 		t.Parallel()
 
-		u := &articledomain.Article{
+		a := &articledomain.Article{
 			Slug:        "perpetual-slug",
 			Title:       "perpetual title",
 			Description: "perpetual description",
@@ -153,9 +153,9 @@ func TestValidate(t *testing.T) {
 			AuthorEmail: "author@perpetual.com",
 		}
 
-		vu, err := u.Validate()
+		va, err := a.Validate()
 		require.NoError(t, err)
-		assert.Same(t, u, vu)
+		assert.Same(t, a, va)
 	})
 }
 
@@ -172,7 +172,7 @@ func TestArticle_Comments(t *testing.T) {
 		},
 	}
 
-	err := ca.AddComment("mysterious title", "mysterious body")
+	err := ca.AddComment("mysterious title", "author@mysterious.com")
 	require.NoError(t, err)
 	assert.Len(t, ca.Comments, 5)
 
