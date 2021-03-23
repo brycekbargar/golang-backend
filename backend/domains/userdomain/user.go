@@ -14,11 +14,11 @@ type PasswordHash = []byte
 // A user can be both the current client logged in (usually id'd by email)
 // and also an proile of someone that is followed (usually id'd by username).
 type User struct {
-	Email    string `valid:"email"`
-	Username string
-	Bio      string `valid:"-"`
-	Image    string `valid:"url,optional"`
-	Password PasswordHash
+	Email    string `valid:"required,email"`
+	Username string `valid:"required"`
+	Bio      string
+	Image    string       `valid:"url,optional"`
+	Password PasswordHash `valid:"required"`
 }
 
 // Fanboy is User with the Users they follow by email

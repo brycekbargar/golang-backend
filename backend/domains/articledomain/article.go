@@ -15,14 +15,14 @@ func init() {
 
 // Article is an individual post in the application.
 type Article struct {
-	Slug         string `valid:"slug"`
-	Title        string
-	Description  string
-	Body         string
+	Slug         string `valid:"required,slug"`
+	Title        string `valid:"required"`
+	Description  string `valid:"required"`
+	Body         string `valid:"required"`
 	TagList      []string
-	CreatedAtUTC time.Time `valid:"-"`
-	UpdatedAtUTC time.Time `valid:"-"`
-	AuthorEmail  string    `valid:"email"`
+	CreatedAtUTC time.Time
+	UpdatedAtUTC time.Time
+	AuthorEmail  string `valid:"required,email"`
 	FavoritedBy  map[string]interface{}
 }
 
@@ -54,6 +54,7 @@ func NewArticle(title string, description string, body string, authorEmail strin
 		Body:        body,
 		TagList:     tags,
 		AuthorEmail: authorEmail,
+		FavoritedBy: make(map[string]interface{}),
 	}).Validate()
 }
 

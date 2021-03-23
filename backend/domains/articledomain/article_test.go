@@ -188,7 +188,9 @@ func TestArticle_Comments(t *testing.T) {
 func TestArticle_Favorites(t *testing.T) {
 	t.Parallel()
 
-	a := articledomain.Article{}
+	a := articledomain.Article{
+		FavoritedBy: make(map[string]interface{}),
+	}
 
 	a.Favorite("user@full.com")
 	a.Favorite("user@full.com")

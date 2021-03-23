@@ -38,7 +38,7 @@ func TestHasPassword(t *testing.T) {
 		u, err := userdomain.NewUserWithPassword("user@impolite.com", "impolite user", "Test1234!")
 		require.NoError(t, err)
 
-		hp, err := u.HasPassword("Test1233!")
+		hp, err := u.HasPassword("Test1234!")
 		require.NoError(t, err)
 		assert.True(t, hp)
 
@@ -59,8 +59,8 @@ func TestHasPassword(t *testing.T) {
 		}
 
 		hp, err := u.HasPassword("Test1234!")
-		require.NoError(t, err)
-		assert.True(t, hp)
+		require.Error(t, err)
+		assert.False(t, hp)
 	})
 }
 

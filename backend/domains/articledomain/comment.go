@@ -20,10 +20,10 @@ func init() {
 
 // Comment is an individual comment associated with a single Article.
 type Comment struct {
-	ID           int `valid:"optional,positive"`
-	Body         string
-	CreatedAtUTC time.Time `valid:"-"`
-	AuthorEmail  string    `valid:"email"`
+	ID           int    `valid:"positive"`
+	Body         string `valid:"required"`
+	CreatedAtUTC time.Time
+	AuthorEmail  string `valid:"required,email"`
 }
 
 // NewComment creates a new comment with the provided information and defaults for the rest
