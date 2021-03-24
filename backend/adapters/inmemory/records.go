@@ -14,7 +14,7 @@ func NewInstance() *adapters.RepositoryImplementation {
 		make(map[string]*userRecord),
 		make(map[string]articleRecord),
 	}
-	return &adapters.RepositoryImplementation{Name: "inmemory", Users: i, Articles: i}
+	return &adapters.RepositoryImplementation{Users: i, Articles: i}
 }
 
 type implementation struct {

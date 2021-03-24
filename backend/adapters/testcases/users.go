@@ -1,56 +1,16 @@
-package adapters_test
+package testcases
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/brycekbargar/realworld-backend/adapters"
-	"github.com/brycekbargar/realworld-backend/adapters/inmemory"
 	"github.com/brycekbargar/realworld-backend/domains/userdomain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func createRepositories(t *testing.T) []*adapters.RepositoryImplementation {
-	t.Helper()
-
-	return []*adapters.RepositoryImplementation{
-		inmemory.NewInstance(),
-	}
-}
-
-func Test_Users(t *testing.T) {
-	t.Helper()
-
-	for _, r := range createRepositories(t) {
-		t.Parallel()
-
-		r := r
-		t.Run(r.Name, func(t *testing.T) {
-			t.Parallel()
-
-			t.Run("Create and Update User", func(t *testing.T) {
-				t.Parallel()
-				test_Users_CreateUser(t, r)
-			})
-			t.Run("Get and Update User By Email", func(t *testing.T) {
-				t.Parallel()
-				test_Users_GetUserByEmail(t, r)
-			})
-			t.Run("Get and Update User By Username", func(t *testing.T) {
-				t.Parallel()
-				test_Users_GetUserByUsername(t, r)
-			})
-			t.Run("Update Fanboy", func(t *testing.T) {
-				t.Parallel()
-				test_Users_UpdateFanboyByEmail(t, r)
-			})
-		})
-	}
-
-}
-
-func test_Users_CreateUser(
+func Users_CreateUser(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
@@ -97,7 +57,7 @@ func test_Users_CreateUser(
 	assert.True(t, hp)
 }
 
-func test_Users_GetUserByEmail(
+func Users_GetUserByEmail(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
@@ -127,7 +87,7 @@ func test_Users_GetUserByEmail(
 	assert.Equal(t, "finicky username", fu.Username)
 }
 
-func test_Users_GetUserByUsername(
+func Users_GetUserByUsername(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
@@ -157,7 +117,7 @@ func test_Users_GetUserByUsername(
 	assert.Equal(t, "user@stormy.com", fu.Email)
 }
 
-func test_Users_UpdateFanboyByEmail(
+func Users_UpdateFanboyByEmail(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
