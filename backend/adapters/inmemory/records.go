@@ -11,15 +11,15 @@ import (
 func NewInstance() *adapters.RepositoryImplementation {
 	i := &implementation{
 		&sync.Mutex{},
-		make(map[string]userRecord),
+		make(map[string]*userRecord),
 		make(map[string]articleRecord),
 	}
-	return &adapters.RepositoryImplementation{Users: i, Articles: i}
+	return &adapters.RepositoryImplementation{Name: "inmemory", Users: i, Articles: i}
 }
 
 type implementation struct {
 	mu       *sync.Mutex
-	users    map[string]userRecord
+	users    map[string]*userRecord
 	articles map[string]articleRecord
 }
 

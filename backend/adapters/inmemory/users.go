@@ -19,7 +19,7 @@ func (r *implementation) CreateUser(u *userdomain.User) (*userdomain.User, error
 		}
 	}
 
-	r.users[strings.ToLower(u.Email)] = userRecord{
+	r.users[strings.ToLower(u.Email)] = &userRecord{
 		u.Email,
 		u.Username,
 		u.Bio,
@@ -102,7 +102,7 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*userdomain.Use
 	if strings.ToLower(u.Email) != prevEm {
 		for _, v := range r.users {
 			// Make sure users following this one get an updated key
-			strings.ReplaceAll(v.following, prevEm, u.Email)
+			v.following = strings.ReplaceAll(v.following, prevEm, u.Email)
 		}
 	}
 
@@ -111,7 +111,7 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*userdomain.Use
 		follows = append(follows, k)
 	}
 
-	r.users[strings.ToLower(u.Email)] = userRecord{
+	r.users[strings.ToLower(u.Email)] = &userRecord{
 		u.Email,
 		u.Username,
 		u.Bio,
@@ -141,10 +141,16 @@ func (r *implementation) UpdateFanboyByEmail(e string, update func(*userdomain.F
 		}
 
 		follows := make([]string, len(uf.Following))
-		for k := range f.Following {
-			follows = append(follows, k)
+		for k := range uf.Following {
+			if k != "" {
+				follows = append(follows, k)
+			}
 		}
-		fr := r.users[strings.ToLower(e)]
+
+		fr, ok := r.users[strings.ToLower(e)]
+		if !ok {
+			return userdomain.ErrNotFound
+		}
 		fr.following = strings.ToLower(strings.Join(follows, ","))
 
 		return nil

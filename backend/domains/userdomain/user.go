@@ -77,9 +77,11 @@ func (u *User) HasPassword(password string) (bool, error) {
 
 // IsFollowing checks if the provided user is currently being followed by this user.
 func (u *Fanboy) FollowingEmails() []string {
-	emails := make([]string, len(u.Following))
+	emails := make([]string, 0)
 	for em := range u.Following {
-		emails = append(emails, em)
+		if em != "" {
+			emails = append(emails, em)
+		}
 	}
 	return emails
 }
