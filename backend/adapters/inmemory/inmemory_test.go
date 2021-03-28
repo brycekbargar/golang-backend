@@ -37,6 +37,10 @@ func Test_Articles(t *testing.T) {
 		t.Parallel()
 		testcases.Articles_CreateArticle(t, uut)
 	})
+	t.Run("Get and Update Article", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_GetArticleBySlug(t, uut)
+	})
 }
 
 func Test_Comments(t *testing.T) {

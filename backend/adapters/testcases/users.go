@@ -74,8 +74,7 @@ func Users_GetUserByEmail(
 	require.NoError(t, err)
 	assert.Equal(t, "finicky username", fu.Username)
 
-	_, err = r.Users.CreateUser(testUser("snobbish"))
-	require.NoError(t, err)
+	r.Users.CreateUser(testUser("snobbish"))
 	_, err = r.Users.UpdateUserByEmail(
 		"user@nutty.com",
 		func(u *userdomain.User) (*userdomain.User, error) {
@@ -112,8 +111,7 @@ func Users_GetUserByUsername(
 	require.NoError(t, err)
 	assert.Equal(t, "user@stormy.com", fu.Email)
 
-	_, err = r.Users.CreateUser(testUser("dusty"))
-	require.NoError(t, err)
+	r.Users.CreateUser(testUser("dusty"))
 	_, err = r.Users.UpdateUserByEmail(
 		"user@stormy.com",
 		func(u *userdomain.User) (*userdomain.User, error) {
@@ -122,7 +120,7 @@ func Users_GetUserByUsername(
 		})
 	assert.ErrorIs(t, err, userdomain.ErrDuplicateValue)
 	fu, err = r.Users.GetUserByUsername("thirsty username")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func Users_UpdateFanboyByEmail(
