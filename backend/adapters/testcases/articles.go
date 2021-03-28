@@ -16,14 +16,8 @@ func Articles_CreateArticle(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
-	a1, err := articledomain.NewArticle(
-		"hospitable title",
-		"hospitable description",
-		"hospitable body",
-		"author@hospitable.com",
-		"hospitable one", "hospitable two", "hospitable three",
-	)
-	_, err = r.Articles.CreateArticle(a1)
+	a1 := testArticle("hospitable")
+	_, err := r.Articles.CreateArticle(a1)
 	assert.ErrorIs(t, err, articledomain.ErrNoAuthor)
 
 	u := testAuthor("hospitable")
@@ -38,8 +32,8 @@ func Articles_CreateArticle(
 	assert.Equal(t, a1.Body, ca1.Body)
 	assert.Empty(t, a1.FavoritedBy)
 
-	assert.Equal(t, u.Email, ca1.AuthorEmail)
-	assert.Equal(t, u.Email, ca1.Author.Email())
+	assert.Equal(t, a1.AuthorEmail, ca1.AuthorEmail)
+	assert.Equal(t, a1.AuthorEmail, ca1.Author.Email())
 	assert.Equal(t, u.Bio, ca1.Author.Bio())
 	assert.Equal(t, u.Image, ca1.Author.Image())
 
@@ -51,4 +45,17 @@ func testAuthor(adj string) *userdomain.User {
 	a := testUser(adj)
 	a.Email = fmt.Sprintf("author@%v.com", adj)
 	return a
+}
+
+func testArticle(adj string) (a *articledomain.Article) {
+	a, _ = articledomain.NewArticle(
+		fmt.Sprintf("%v title", adj),
+		fmt.Sprintf("%v description", adj),
+		fmt.Sprintf("%v body", adj),
+		fmt.Sprintf("author@%v.com", adj),
+		fmt.Sprintf("%v one", adj),
+		fmt.Sprintf("%v two", adj),
+		fmt.Sprintf("%v three", adj),
+	)
+	return
 }
