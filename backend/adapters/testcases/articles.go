@@ -126,6 +126,23 @@ func Articles_GetArticleBySlug(
 	fa, err = r.Articles.GetArticleBySlug("silent-title")
 	assert.NoError(t, err)
 }
+func Articles_DeleteArticle(
+	t *testing.T,
+	r *adapters.RepositoryImplementation,
+) {
+	r.Users.CreateUser(testAuthor("deranged"))
+	r.Articles.CreateArticle(testArticle("deranged"))
+
+	a, err := r.Articles.GetArticleBySlug("deranged-title")
+	require.NoError(t, err)
+	err = r.Articles.DeleteArticle(&a.Article)
+	assert.NoError(t, err)
+	a, err = r.Articles.GetArticleBySlug("deranged-title")
+	assert.ErrorIs(t, err, articledomain.ErrNotFound)
+
+	err = r.Articles.DeleteArticle(nil)
+	assert.NoError(t, err)
+}
 
 func testAuthor(adj string) *userdomain.User {
 	a := testUser(adj)

@@ -41,6 +41,10 @@ func Test_Articles(t *testing.T) {
 		t.Parallel()
 		testcases.Articles_GetArticleBySlug(t, uut)
 	})
+	t.Run("Delete Article", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_DeleteArticle(t, uut)
+	})
 }
 
 func Test_Comments(t *testing.T) {

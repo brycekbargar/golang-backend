@@ -132,7 +132,15 @@ func (r *implementation) UpdateCommentsBySlug(string, func(*articledomain.Commen
 }
 
 // DeleteArticleBySlug deletes the article with the provide slug if it exists.
-func (r *implementation) DeleteArticle(*articledomain.Article) error {
+func (r *implementation) DeleteArticle(a *articledomain.Article) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if a == nil {
+		return nil
+	}
+
+	delete(r.articles, strings.ToLower(a.Slug))
 	return nil
 }
 

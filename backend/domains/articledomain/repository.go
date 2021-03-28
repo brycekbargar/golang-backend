@@ -36,7 +36,7 @@ type Repository interface {
 	// UpdateCommentsBySlug finds a single article based on its slug
 	// then applies the provide mutations to its comments.
 	UpdateCommentsBySlug(string, func(*CommentedArticle) (*CommentedArticle, error)) (*Comment, error)
-	// DeleteArticle deletes the article with the provide slug if it exists.
+	// DeleteArticle deletes the article if it exists.
 	DeleteArticle(*Article) error
 	// DistinctTags returns a distinct list of tags on all articles
 	DistinctTags() ([]string, error)
