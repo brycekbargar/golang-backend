@@ -23,7 +23,7 @@ func (r *implementation) CreateArticle(a *articledomain.Article) (*articledomain
 	}
 
 	now := time.Now().UTC()
-	r.articles[strings.ToLower(a.Slug)] = articleRecord{
+	r.articles[strings.ToLower(a.Slug)] = &articleRecord{
 		a.Slug,
 		a.Title,
 		a.Description,
@@ -78,8 +78,51 @@ func (r *implementation) GetCommentsBySlug(string) (*articledomain.CommentedArti
 
 // UpdateArticleBySlug finds a single article based on its slug
 // then applies the provide mutations.
-func (r *implementation) UpdateArticleBySlug(string, func(*articledomain.Article) (*articledomain.Article, error)) (*articledomain.AuthoredArticle, error) {
-	return nil, nil
+func (r *implementation) UpdateArticleBySlug(s string, update func(*articledomain.Article) (*articledomain.Article, error)) (*articledomain.AuthoredArticle, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	f, err := r.GetArticleBySlug(s)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err := update(&f.Article)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := r.users[strings.ToLower(a.AuthorEmail)]; !ok {
+		return nil, articledomain.ErrNoAuthor
+	}
+
+	removed := r.articles[strings.ToLower(s)]
+	delete(r.articles, strings.ToLower(s))
+
+	for s := range r.articles {
+		if s == strings.ToLower(a.Slug) {
+
+			// Add the deleted article back if they've become a duplicate
+			r.articles[strings.ToLower(removed.slug)] = removed
+			return nil, articledomain.ErrDuplicateValue
+		}
+	}
+
+	now := time.Now().UTC()
+	r.articles[strings.ToLower(a.Slug)] = &articleRecord{
+		a.Slug,
+		a.Title,
+		a.Description,
+		a.Body,
+		a.TagList,
+		a.CreatedAtUTC,
+		now,
+		a.AuthorEmail,
+		make([]*commentRecord, 0),
+		map[string]interface{}{},
+	}
+
+	return r.GetArticleBySlug(a.Slug)
 }
 
 // UpdateCommentsBySlug finds a single article based on its slug

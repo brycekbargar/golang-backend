@@ -94,15 +94,23 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*userdomain.Use
 			strings.ToLower(v.username) == strings.ToLower(u.Username) {
 
 			// Add the deleted user back if they've become a duplicate
-			r.users[strings.ToLower(e)] = removed
+			r.users[strings.ToLower(removed.email)] = removed
 			return nil, userdomain.ErrDuplicateValue
 		}
 	}
 
 	if strings.ToLower(u.Email) != prevEm {
+		// TODO: Handle emails that contain other emails...
+
 		for _, v := range r.users {
 			// Make sure users following this one get an updated key
 			v.following = strings.ReplaceAll(v.following, prevEm, u.Email)
+		}
+		for _, v := range r.articles {
+			// Make sure articles this user authored get an updated key
+			if strings.ToLower(v.author) == prevEm {
+				v.author = u.Email
+			}
 		}
 	}
 

@@ -12,7 +12,7 @@ func NewInstance() *adapters.RepositoryImplementation {
 	i := &implementation{
 		&sync.Mutex{},
 		make(map[string]*userRecord),
-		make(map[string]articleRecord),
+		make(map[string]*articleRecord),
 	}
 	return &adapters.RepositoryImplementation{Users: i, Articles: i}
 }
@@ -20,7 +20,7 @@ func NewInstance() *adapters.RepositoryImplementation {
 type implementation struct {
 	mu       *sync.Mutex
 	users    map[string]*userRecord
-	articles map[string]articleRecord
+	articles map[string]*articleRecord
 }
 
 type userRecord struct {
