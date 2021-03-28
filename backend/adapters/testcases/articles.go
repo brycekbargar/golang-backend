@@ -144,6 +144,77 @@ func Articles_DeleteArticle(
 	assert.NoError(t, err)
 }
 
+func Articles_LatestArticlesByCriteria(
+	t *testing.T,
+	r *adapters.RepositoryImplementation,
+) {
+	tt := "Articles_LatestArticlesByCriteria"
+
+	authors := []*userdomain.User{
+		testAuthor("frail"),
+		testAuthor("simple"),
+		testAuthor("reminiscent"),
+	}
+	for _, a := range authors {
+		_, err := r.Users.CreateUser(a)
+		require.NoError(t, err)
+	}
+
+	source := make([]*articledomain.AuthoredArticle, 13)
+	for i, adj := range []string{
+		"bright",
+		"colorful",
+		"sour",
+		"fantastic",
+		"mellow",
+		"splendid",
+		"gruesome",
+		"madly",
+		"kind",
+		"organic",
+		"public",
+		"flagrant",
+		"waggish",
+	} {
+		a := testArticle(adj)
+		a.AuthorEmail = authors[i%3].Email
+		a.TagList = append(a.TagList, tt)
+
+		_, err := r.Articles.CreateArticle(a)
+		require.NoError(t, err)
+
+		fa, err := r.Articles.GetArticleBySlug(a.Slug)
+		require.NoError(t, err)
+		source = append(source, fa)
+	}
+
+	cases := []struct {
+		Name  string
+		Query articledomain.ListCriteria
+		Try   func([]*articledomain.AuthoredArticle, error)
+	}{
+		{
+			"All Tagged",
+			articledomain.ListCriteria{
+				Tag: tt,
+			},
+			func(all []*articledomain.AuthoredArticle, err error) {
+				require.NoError(t, err)
+
+				assert.ElementsMatch(t, source, all)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			tc.Try(r.Articles.LatestArticlesByCriteria(tc.Query))
+		})
+	}
+}
+
 func testAuthor(adj string) *userdomain.User {
 	a := testUser(adj)
 	a.Email = fmt.Sprintf("author@%v.com", adj)

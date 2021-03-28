@@ -45,6 +45,10 @@ func Test_Articles(t *testing.T) {
 		t.Parallel()
 		testcases.Articles_DeleteArticle(t, uut)
 	})
+	t.Run("Query Articles", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_LatestArticlesByCriteria(t, uut)
+	})
 }
 
 func Test_Comments(t *testing.T) {

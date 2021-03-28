@@ -39,8 +39,21 @@ func (r *implementation) CreateArticle(a *articledomain.Article) (*articledomain
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-func (r *implementation) LatestArticlesByCriteria(articledomain.ListCriteria) ([]*articledomain.AuthoredArticle, error) {
-	return nil, nil
+func (r *implementation) LatestArticlesByCriteria(query articledomain.ListCriteria) (
+	[]*articledomain.AuthoredArticle,
+	error,
+) {
+	results := make([]*articledomain.AuthoredArticle, 0, len(r.articles))
+
+	lt := strings.ToLower(query.Tag)
+	for _, ar := range r.articles {
+		if lt != "" && strings.Contains(strings.ToLower(ar.tagList), lt) {
+			results = append(results, nil)
+			continue
+		}
+	}
+
+	return results, nil
 }
 
 // GetArticleBySlug gets a single article with the given slug.

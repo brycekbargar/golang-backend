@@ -47,7 +47,7 @@ type articleRecord struct {
 	title        string
 	description  string
 	body         string
-	tagList      []string
+	tagList      string
 	createdAtUTC time.Time
 	updatedAtUTC time.Time
 	author       string
