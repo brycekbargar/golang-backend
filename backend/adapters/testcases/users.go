@@ -14,20 +14,12 @@ func Users_CreateUser(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
-	u1, err := userdomain.NewUserWithPassword(
-		"user@faithful.com",
-		"faithful username",
-		"Test1234!",
-	)
+	u1 := testUser("faithful")
 	cu1, err := r.Users.CreateUser(u1)
 	require.NoError(t, err)
 	assert.Equal(t, u1, cu1)
 
-	u2, err := userdomain.NewUserWithPassword(
-		"user@kindhearted.com",
-		"kindhearted username",
-		"Test1234!",
-	)
+	u2 := testUser("kindhearted")
 	cu2, err := r.Users.CreateUser(u2)
 	require.NoError(t, err)
 	assert.Equal(t, u2, cu2)
@@ -61,12 +53,8 @@ func Users_GetUserByEmail(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
-	u, err := userdomain.NewUserWithPassword(
-		"user@finicky.com",
-		"finicky username",
-		"Test1234!",
-	)
-	_, err = r.Users.CreateUser(u)
+	u := testUser("finicky")
+	_, err := r.Users.CreateUser(u)
 	require.NoError(t, err)
 
 	fu, err := r.Users.GetUserByEmail(u.Email)
@@ -91,12 +79,8 @@ func Users_GetUserByUsername(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
-	u, err := userdomain.NewUserWithPassword(
-		"user@stormy.com",
-		"stormy username",
-		"Test1234!",
-	)
-	_, err = r.Users.CreateUser(u)
+	u := testUser("stormy")
+	_, err := r.Users.CreateUser(u)
 	require.NoError(t, err)
 
 	fu, err := r.Users.GetUserByUsername(u.Username)
@@ -121,12 +105,8 @@ func Users_UpdateFanboyByEmail(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,
 ) {
-	u, err := userdomain.NewUserWithPassword(
-		"user@gifted.com",
-		"gifted username",
-		"Test1234!",
-	)
-	_, err = r.Users.CreateUser(u)
+	u := testUser("gifted")
+	_, err := r.Users.CreateUser(u)
 	require.NoError(t, err)
 
 	fu, err := r.Users.GetUserByEmail(u.Email)
@@ -134,12 +114,8 @@ func Users_UpdateFanboyByEmail(
 	assert.Empty(t, fu.FollowingEmails())
 
 	for _, a := range []string{"important", "lumpy", "remarkable", "valuable"} {
-		u, err := userdomain.NewUserWithPassword(
-			fmt.Sprintf("user@%v.com", a),
-			fmt.Sprintf("%v username", a),
-			"Test1234!",
-		)
-		_, err = r.Users.CreateUser(u)
+		u := testUser(a)
+		_, err := r.Users.CreateUser(u)
 		require.NoError(t, err)
 	}
 
@@ -181,4 +157,16 @@ func Users_UpdateFanboyByEmail(
 	assert.Len(t, fu.FollowingEmails(), 3)
 	assert.False(t, fu.IsFollowing("user@best.com"))
 	assert.False(t, fu.IsFollowing("not an email"))
+}
+
+func testUser(adj string) *userdomain.User {
+	u, _ := userdomain.NewUserWithPassword(
+		fmt.Sprintf("user@%v.com", adj),
+		fmt.Sprintf("%v username", adj),
+		"Test1234!",
+	)
+	u.Bio = fmt.Sprintf("%v bio", adj)
+	u.Image = fmt.Sprintf("http://%v.com/profile.png", adj)
+
+	return u
 }

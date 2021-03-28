@@ -29,3 +29,16 @@ func Test_Users(t *testing.T) {
 		testcases.Users_UpdateFanboyByEmail(t, uut)
 	})
 }
+
+func Test_Articles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Create and Update Article", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_CreateArticle(t, uut)
+	})
+}
+
+func Test_Comments(t *testing.T) {
+	t.Parallel()
+}
