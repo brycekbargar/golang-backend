@@ -67,9 +67,9 @@ func (r *implementation) LatestArticlesByCriteria(query articledomain.ListCriter
 
 	for _, ar := range ordered {
 		if off < query.Offset {
+			off++
 			continue
 		}
-		off++
 
 		_, a := am[ar.author]
 		if len(query.AuthorEmails) > 0 && !a {

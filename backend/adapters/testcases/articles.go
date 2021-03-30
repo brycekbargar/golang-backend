@@ -206,6 +206,21 @@ func Articles_LatestArticlesByCriteria(
 				assert.ElementsMatch(t, source, all)
 			},
 		},
+		{
+			"Offset Limit Sort",
+			articledomain.ListCriteria{
+				Tag:    tt,
+				Offset: 2,
+				Limit:  5,
+			},
+			func(some []*articledomain.AuthoredArticle, err error) {
+				require.NoError(t, err)
+
+				assert.Len(t, some, 5)
+				assert.Equal(t, "public-title", some[0].Slug)
+				assert.Equal(t, "gruesome-title", some[4].Slug)
+			},
+		},
 	}
 
 	for _, tc := range cases {
