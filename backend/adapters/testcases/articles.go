@@ -160,7 +160,7 @@ func Articles_LatestArticlesByCriteria(
 		require.NoError(t, err)
 	}
 
-	source := make([]*articledomain.AuthoredArticle, 13)
+	source := make([]*articledomain.AuthoredArticle, 0, 13)
 	for i, adj := range []string{
 		"bright",
 		"colorful",
@@ -196,7 +196,9 @@ func Articles_LatestArticlesByCriteria(
 		{
 			"All Tagged",
 			articledomain.ListCriteria{
-				Tag: tt,
+				Tag:    tt,
+				Offset: 0,
+				Limit:  13,
 			},
 			func(all []*articledomain.AuthoredArticle, err error) {
 				require.NoError(t, err)

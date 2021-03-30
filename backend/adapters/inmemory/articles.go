@@ -1,6 +1,7 @@
 package inmemory
 
 import (
+	"sort"
 	"strings"
 	"time"
 
@@ -28,7 +29,7 @@ func (r *implementation) CreateArticle(a *articledomain.Article) (*articledomain
 		a.Title,
 		a.Description,
 		a.Body,
-		a.TagList,
+		strings.Join(a.TagList, ","),
 		now,
 		now,
 		a.AuthorEmail,
@@ -43,13 +44,56 @@ func (r *implementation) LatestArticlesByCriteria(query articledomain.ListCriter
 	[]*articledomain.AuthoredArticle,
 	error,
 ) {
-	results := make([]*articledomain.AuthoredArticle, 0, len(r.articles))
+	// i wish this was sql qq
+	results := make([]*articledomain.AuthoredArticle, 0, query.Limit)
 
+	off := 0
+	lim := 0
+
+	lf := strings.ToLower(query.FavoritedByUserEmail)
 	lt := strings.ToLower(query.Tag)
+	am := make(map[string]interface{}, len(query.AuthorEmails))
+	for _, ae := range query.AuthorEmails {
+		am[strings.ToLower(ae)] = nil
+	}
+
+	ordered := make([]*articleRecord, 0, len(r.articles))
 	for _, ar := range r.articles {
-		if lt != "" && strings.Contains(strings.ToLower(ar.tagList), lt) {
-			results = append(results, nil)
+		ordered = append(ordered, ar)
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		return ordered[i].createdAtUTC.After(ordered[j].createdAtUTC)
+	})
+
+	for _, ar := range ordered {
+		if off < query.Offset {
 			continue
+		}
+		off++
+
+		_, a := am[ar.author]
+		if len(query.AuthorEmails) > 0 && !a {
+			continue
+		}
+
+		_, f := ar.favoritedBy[lf]
+		if lf != "" && !f {
+			continue
+		}
+
+		if lt != "" && !strings.Contains(strings.ToLower(ar.tagList), lt) {
+			continue
+		}
+
+		da, err := r.GetArticleBySlug(ar.slug)
+		if err != nil {
+			continue
+		}
+		results = append(results, da)
+
+		lim++
+		if lim >= query.Limit {
+			break
 		}
 	}
 
@@ -71,7 +115,7 @@ func (r *implementation) GetArticleBySlug(s string) (*articledomain.AuthoredArti
 				Title:        a.title,
 				Description:  a.description,
 				Body:         a.body,
-				TagList:      a.tagList,
+				TagList:      strings.Split(a.tagList, ","),
 				CreatedAtUTC: a.createdAtUTC,
 				UpdatedAtUTC: a.updatedAtUTC,
 				AuthorEmail:  a.author,
@@ -127,7 +171,7 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*articledomai
 		a.Title,
 		a.Description,
 		a.Body,
-		a.TagList,
+		strings.Join(a.TagList, ","),
 		a.CreatedAtUTC,
 		now,
 		a.AuthorEmail,
