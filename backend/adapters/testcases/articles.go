@@ -221,6 +221,23 @@ func Articles_LatestArticlesByCriteria(
 				assert.Equal(t, "gruesome-title", some[4].Slug)
 			},
 		},
+		{
+			"Authored By",
+			articledomain.ListCriteria{
+				Tag:          tt,
+				Offset:       0,
+				Limit:        13,
+				AuthorEmails: []string{"author@frail.com", "author@simple.com"},
+			},
+			func(authored []*articledomain.AuthoredArticle, err error) {
+				require.NoError(t, err)
+
+				assert.NotEmpty(t, authored)
+				for _, a := range authored {
+					assert.NotEqual(t, "author@reminiscent.com", a.AuthorEmail)
+				}
+			},
+		},
 	}
 
 	for _, tc := range cases {
