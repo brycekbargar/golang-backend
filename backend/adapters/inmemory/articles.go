@@ -203,5 +203,17 @@ func (r *implementation) DeleteArticle(a *articledomain.Article) error {
 
 // DistinctTags returns a distinct list of tags on articles
 func (r *implementation) DistinctTags() ([]string, error) {
-	return nil, nil
+	tm := make(map[string]interface{})
+	for _, ar := range r.articles {
+		for _, t := range strings.Split(ar.tagList, ",") {
+			tm[strings.ToLower(t)] = nil
+		}
+	}
+
+	tags := make([]string, 0, len(tm))
+	for t := range tm {
+		tags = append(tags, t)
+	}
+
+	return tags, nil
 }

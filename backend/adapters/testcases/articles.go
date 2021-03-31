@@ -248,6 +248,41 @@ func Articles_LatestArticlesByCriteria(
 		})
 	}
 }
+func Articles_DistinctTags(
+	t *testing.T,
+	r *adapters.RepositoryImplementation,
+) {
+	tt := "Articles_DistinctTags"
+
+	r.Users.CreateUser(testAuthor("threatening"))
+	for _, adj := range []string{
+		"stimulating",
+		"exultant",
+		"helpless",
+	} {
+		a := testArticle(adj)
+		a.AuthorEmail = "author@threatening.com"
+		a.TagList = append(a.TagList, tt)
+
+		_, err := r.Articles.CreateArticle(a)
+		require.NoError(t, err)
+	}
+
+	tags, err := r.Articles.DistinctTags()
+	require.NoError(t, err)
+
+	assert.Contains(t, tags, "stimulating one", "stimulating two")
+	assert.Contains(t, tags, "helpless three")
+	htt := false
+	for i := range tags {
+		if tags[i] == tt {
+			if htt {
+				assert.Fail(t, "the testing tag was not distinct")
+			}
+			htt = true
+		}
+	}
+}
 
 func testAuthor(adj string) *userdomain.User {
 	a := testUser(adj)
