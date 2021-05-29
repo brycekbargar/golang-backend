@@ -129,8 +129,29 @@ func (r *implementation) GetArticleBySlug(s string) (*articledomain.AuthoredArti
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
-func (r *implementation) GetCommentsBySlug(string) (*articledomain.CommentedArticle, error) {
-	return nil, nil
+func (r *implementation) GetCommentsBySlug(s string) (*articledomain.CommentedArticle, error) {
+	a, err := r.GetArticleBySlug(s)
+	if err != nil {
+		return nil, err
+	}
+
+	if ar, ok := r.articles[strings.ToLower(s)]; ok {
+		cs := make([]*articledomain.Comment, 0, len(ar.comments))
+		for _, c := range ar.comments {
+			cs = append(cs, &articledomain.Comment{
+				ID:           c.id,
+				Body:         c.body,
+				CreatedAtUTC: c.createdAtUTC,
+				AuthorEmail:  c.author,
+			})
+		}
+
+		return &articledomain.CommentedArticle{
+			Article:  a.Article,
+			Comments: cs,
+		}, nil
+	}
+	return nil, articledomain.ErrNotFound
 }
 
 // UpdateArticleBySlug finds a single article based on its slug
@@ -184,7 +205,49 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*articledomai
 
 // UpdateCommentsBySlug finds a single article based on its slug
 // then applies the provide mutations to its comments.
-func (r *implementation) UpdateCommentsBySlug(string, func(*articledomain.CommentedArticle) (*articledomain.CommentedArticle, error)) (*articledomain.Comment, error) {
+func (r *implementation) UpdateCommentsBySlug(s string, update func(*articledomain.CommentedArticle) (*articledomain.CommentedArticle, error)) (*articledomain.Comment, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	f, err := r.GetCommentsBySlug(s)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err := update(f)
+	if err != nil {
+		return nil, err
+	}
+
+	id := 0
+	for _, c := range a.Comments {
+		if c.ID > id {
+			id = c.ID
+		}
+	}
+
+	ncs := make([]*articledomain.Comment, 0, len(a.Comments))
+	cs := make([]*commentRecord, 0, len(a.Comments))
+	for _, c := range a.Comments {
+		if c.ID == 0 {
+			id++
+			c.ID = id
+			c.CreatedAtUTC = time.Now().UTC()
+			ncs = append(ncs, c)
+		}
+		cs = append(cs, &commentRecord{
+			id:           c.ID,
+			body:         c.Body,
+			createdAtUTC: c.CreatedAtUTC,
+			author:       c.AuthorEmail,
+		})
+	}
+	r.articles[strings.ToLower(a.Slug)].comments = cs
+
+	if len(ncs) > 0 {
+		return ncs[0], nil
+	}
+
 	return nil, nil
 }
 

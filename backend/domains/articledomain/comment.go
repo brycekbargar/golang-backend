@@ -11,7 +11,7 @@ func init() {
 		govalidator.CustomTypeValidator(func(i interface{}, o interface{}) bool {
 			switch num := i.(type) {
 			case int:
-				return num > 0
+				return num >= 0
 			default:
 				return false
 			}

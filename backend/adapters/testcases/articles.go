@@ -248,6 +248,77 @@ func Articles_LatestArticlesByCriteria(
 		})
 	}
 }
+
+func Articles_UpdateCommentsBySlug(
+	t *testing.T,
+	r *adapters.RepositoryImplementation,
+) {
+	r.Users.CreateUser(testUser("simplistic"))
+	r.Users.CreateUser(testAuthor("envious"))
+
+	now := time.Now().UTC()
+	for _, adj := range []string{
+		"tedious",
+		"polite",
+		"divergent",
+	} {
+		a := testArticle(adj)
+		a.AuthorEmail = "author@envious.com"
+
+		_, err := r.Articles.CreateArticle(a)
+		require.NoError(t, err)
+	}
+
+	c, err := r.Articles.UpdateCommentsBySlug(
+		"tedious-title",
+		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+			err := a.AddComment("enchanting body", "user@simplistic.com")
+			if err != nil {
+				return nil, err
+			}
+			return a, nil
+		})
+	require.NoError(t, err)
+
+	assert.Positive(t, c.ID)
+	assert.Equal(t, "enchanting body", c.Body)
+	assert.Equal(t, "user@simplistic.com", c.AuthorEmail)
+	assert.True(t, now.Before(c.CreatedAtUTC))
+
+	_, err = r.Articles.UpdateCommentsBySlug(
+		"tedious-title",
+		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+			err := a.AddComment("quirky body", "user@simplistic.com")
+			if err != nil {
+				return nil, err
+			}
+			return a, nil
+		})
+	require.NoError(t, err)
+
+	a, err := r.Articles.GetCommentsBySlug("tedious-title")
+	require.NoError(t, err)
+
+	assert.Len(t, a.Comments, 2)
+
+	_, err = r.Articles.UpdateCommentsBySlug(
+		"tedious-title",
+		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+			a.RemoveComment(c.ID)
+			return a, nil
+		})
+	require.NoError(t, err)
+
+	a, err = r.Articles.GetCommentsBySlug("tedious-title")
+	require.NoError(t, err)
+
+	assert.Len(t, a.Comments, 1)
+	assert.Positive(t, a.Comments[0].ID)
+	assert.Equal(t, "quirky body", a.Comments[0].Body)
+	assert.Equal(t, "user@simplistic.com", a.Comments[0].AuthorEmail)
+	assert.True(t, now.Before(a.Comments[0].CreatedAtUTC))
+}
+
 func Articles_DistinctTags(
 	t *testing.T,
 	r *adapters.RepositoryImplementation,

@@ -49,12 +49,12 @@ func Test_Articles(t *testing.T) {
 		t.Parallel()
 		testcases.Articles_LatestArticlesByCriteria(t, uut)
 	})
+	t.Run("Create and Delete Comments", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_UpdateCommentsBySlug(t, uut)
+	})
 	t.Run("Query Tags", func(t *testing.T) {
 		t.Parallel()
 		testcases.Articles_DistinctTags(t, uut)
 	})
-}
-
-func Test_Comments(t *testing.T) {
-	t.Parallel()
 }

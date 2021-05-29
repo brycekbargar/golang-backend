@@ -62,7 +62,7 @@ func TestComment_Validate(t *testing.T) {
 		t.Parallel()
 
 		c := &articledomain.Comment{
-			ID:          5,
+			ID:          0,
 			Body:        "coherent body",
 			AuthorEmail: "user@coherent.com",
 		}
