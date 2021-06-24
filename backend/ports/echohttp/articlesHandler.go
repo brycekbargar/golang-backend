@@ -13,7 +13,9 @@ import (
 )
 
 func init() {
-	slug.CustomSub["feed"] = "f"
+	slug.CustomSub = map[string]string{
+		"feed": "f",
+	}
 }
 
 type articlesHandler struct {
@@ -120,7 +122,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 	}
 
 	res := list{
-		make([]articleArticle, len(al)),
+		make([]articleArticle, 0, len(al)),
 		len(al),
 	}
 
@@ -178,7 +180,7 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 	}
 
 	res := list{
-		make([]articleArticle, len(al)),
+		make([]articleArticle, 0, len(al)),
 		len(al),
 	}
 
