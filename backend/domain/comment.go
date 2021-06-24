@@ -1,4 +1,4 @@
-package articledomain
+package domain
 
 import (
 	"time"

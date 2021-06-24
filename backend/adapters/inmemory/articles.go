@@ -5,22 +5,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brycekbargar/realworld-backend/domains/articledomain"
+	"github.com/brycekbargar/realworld-backend/domain"
 )
 
 // Create creates a new article.
-func (r *implementation) CreateArticle(a *articledomain.Article) (*articledomain.AuthoredArticle, error) {
+func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArticle, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for s := range r.articles {
 		if s == strings.ToLower(a.Slug) {
-			return nil, articledomain.ErrDuplicateValue
+			return nil, domain.ErrDuplicateArticle
 		}
 	}
 
 	if _, ok := r.users[strings.ToLower(a.AuthorEmail)]; !ok {
-		return nil, articledomain.ErrNoAuthor
+		return nil, domain.ErrNoAuthor
 	}
 
 	now := time.Now().UTC()
@@ -40,12 +40,12 @@ func (r *implementation) CreateArticle(a *articledomain.Article) (*articledomain
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-func (r *implementation) LatestArticlesByCriteria(query articledomain.ListCriteria) (
-	[]*articledomain.AuthoredArticle,
+func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
+	[]*domain.AuthoredArticle,
 	error,
 ) {
 	// i wish this was sql qq
-	results := make([]*articledomain.AuthoredArticle, 0, query.Limit)
+	results := make([]*domain.AuthoredArticle, 0, query.Limit)
 
 	off := 0
 	lim := 0
@@ -101,16 +101,16 @@ func (r *implementation) LatestArticlesByCriteria(query articledomain.ListCriter
 }
 
 // GetArticleBySlug gets a single article with the given slug.
-func (r *implementation) GetArticleBySlug(s string) (*articledomain.AuthoredArticle, error) {
+func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, error) {
 	if a, ok := r.articles[strings.ToLower(s)]; ok {
 
 		aa, ok := r.users[strings.ToLower(a.author)]
 		if !ok {
-			return nil, articledomain.ErrNoAuthor
+			return nil, domain.ErrNoAuthor
 		}
 
-		return &articledomain.AuthoredArticle{
-			Article: articledomain.Article{
+		return &domain.AuthoredArticle{
+			Article: domain.Article{
 				Slug:         a.slug,
 				Title:        a.title,
 				Description:  a.description,
@@ -125,20 +125,20 @@ func (r *implementation) GetArticleBySlug(s string) (*articledomain.AuthoredArti
 		}, nil
 	}
 
-	return nil, articledomain.ErrNotFound
+	return nil, domain.ErrArticleNotFound
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
-func (r *implementation) GetCommentsBySlug(s string) (*articledomain.CommentedArticle, error) {
+func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, error) {
 	a, err := r.GetArticleBySlug(s)
 	if err != nil {
 		return nil, err
 	}
 
 	if ar, ok := r.articles[strings.ToLower(s)]; ok {
-		cs := make([]*articledomain.Comment, 0, len(ar.comments))
+		cs := make([]*domain.Comment, 0, len(ar.comments))
 		for _, c := range ar.comments {
-			cs = append(cs, &articledomain.Comment{
+			cs = append(cs, &domain.Comment{
 				ID:           c.id,
 				Body:         c.body,
 				CreatedAtUTC: c.createdAtUTC,
@@ -146,17 +146,17 @@ func (r *implementation) GetCommentsBySlug(s string) (*articledomain.CommentedAr
 			})
 		}
 
-		return &articledomain.CommentedArticle{
+		return &domain.CommentedArticle{
 			Article:  a.Article,
 			Comments: cs,
 		}, nil
 	}
-	return nil, articledomain.ErrNotFound
+	return nil, domain.ErrArticleNotFound
 }
 
 // UpdateArticleBySlug finds a single article based on its slug
 // then applies the provide mutations.
-func (r *implementation) UpdateArticleBySlug(s string, update func(*articledomain.Article) (*articledomain.Article, error)) (*articledomain.AuthoredArticle, error) {
+func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -171,7 +171,7 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*articledomai
 	}
 
 	if _, ok := r.users[strings.ToLower(a.AuthorEmail)]; !ok {
-		return nil, articledomain.ErrNoAuthor
+		return nil, domain.ErrNoAuthor
 	}
 
 	removed := r.articles[strings.ToLower(s)]
@@ -182,7 +182,7 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*articledomai
 
 			// Add the deleted article back if they've become a duplicate
 			r.articles[strings.ToLower(removed.slug)] = removed
-			return nil, articledomain.ErrDuplicateValue
+			return nil, domain.ErrDuplicateArticle
 		}
 	}
 
@@ -205,7 +205,7 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*articledomai
 
 // UpdateCommentsBySlug finds a single article based on its slug
 // then applies the provide mutations to its comments.
-func (r *implementation) UpdateCommentsBySlug(s string, update func(*articledomain.CommentedArticle) (*articledomain.CommentedArticle, error)) (*articledomain.Comment, error) {
+func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.CommentedArticle) (*domain.CommentedArticle, error)) (*domain.Comment, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -226,7 +226,7 @@ func (r *implementation) UpdateCommentsBySlug(s string, update func(*articledoma
 		}
 	}
 
-	ncs := make([]*articledomain.Comment, 0, len(a.Comments))
+	ncs := make([]*domain.Comment, 0, len(a.Comments))
 	cs := make([]*commentRecord, 0, len(a.Comments))
 	for _, c := range a.Comments {
 		if c.ID == 0 {
@@ -252,7 +252,7 @@ func (r *implementation) UpdateCommentsBySlug(s string, update func(*articledoma
 }
 
 // DeleteArticleBySlug deletes the article with the provide slug if it exists.
-func (r *implementation) DeleteArticle(a *articledomain.Article) error {
+func (r *implementation) DeleteArticle(a *domain.Article) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

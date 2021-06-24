@@ -11,8 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	"github.com/brycekbargar/realworld-backend/domains/articledomain"
-	"github.com/brycekbargar/realworld-backend/domains/userdomain"
+	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/brycekbargar/realworld-backend/ports"
 )
 
@@ -20,8 +19,7 @@ import (
 func Start(
 	jc ports.JWTConfig,
 	port int,
-	users userdomain.Repository,
-	articles articledomain.Repository,
+	repo domain.Repository,
 ) error {
 	s := echo.New()
 	s.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -65,8 +63,8 @@ func Start(
 	})
 
 	api := s.Group("/api")
-	newUsersHandler(users, fullAuth, maybeAuth, jc).mapRoutes(api)
-	newArticlesHandler(users, articles, fullAuth, maybeAuth).mapRoutes(api)
+	newUsersHandler(repo, fullAuth, maybeAuth, jc).mapRoutes(api)
+	newArticlesHandler(repo, fullAuth, maybeAuth).mapRoutes(api)
 
 	return s.Start(":" + strconv.Itoa(port))
 }

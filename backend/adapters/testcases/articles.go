@@ -5,26 +5,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brycekbargar/realworld-backend/adapters"
-	"github.com/brycekbargar/realworld-backend/domains/articledomain"
-	"github.com/brycekbargar/realworld-backend/domains/userdomain"
+	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func Articles_CreateArticle(
 	t *testing.T,
-	r *adapters.RepositoryImplementation,
+	r domain.Repository,
 ) {
 	a := testArticle("hospitable")
-	_, err := r.Articles.CreateArticle(a)
-	assert.ErrorIs(t, err, articledomain.ErrNoAuthor)
+	_, err := r.CreateArticle(a)
+	assert.ErrorIs(t, err, domain.ErrNoAuthor)
 
 	u := testAuthor("hospitable")
-	r.Users.CreateUser(u)
+	r.CreateUser(u)
 
 	now := time.Now().UTC()
-	ca, err := r.Articles.CreateArticle(a)
+	ca, err := r.CreateArticle(a)
 	require.NoError(t, err)
 
 	assert.Equal(t, a.Slug, ca.Slug)
@@ -40,20 +38,20 @@ func Articles_CreateArticle(
 	assert.True(t, ca.CreatedAtUTC.After(now))
 	assert.Equal(t, ca.CreatedAtUTC, ca.UpdatedAtUTC)
 
-	_, err = r.Articles.CreateArticle(testArticle("hospitable"))
-	assert.ErrorIs(t, err, articledomain.ErrDuplicateValue)
+	_, err = r.CreateArticle(testArticle("hospitable"))
+	assert.ErrorIs(t, err, domain.ErrDuplicateArticle)
 
 	now = time.Now().UTC()
 	ua := testArticle("enchanting")
 	ua.SetTitle("hospitable title")
 	ua.AuthorEmail = u.Email
-	_, err = r.Articles.UpdateArticleBySlug(
+	_, err = r.UpdateArticleBySlug(
 		"hospitable-title",
-		func(a *articledomain.Article) (*articledomain.Article, error) {
+		func(a *domain.Article) (*domain.Article, error) {
 			return ua, nil
 		})
 	require.NoError(t, err)
-	fa, err := r.Articles.GetArticleBySlug("hospitable-title")
+	fa, err := r.GetArticleBySlug("hospitable-title")
 	assert.NoError(t, err)
 	assert.Equal(t, ua.Slug, fa.Slug)
 	assert.Equal(t, ua.Title, fa.Title)
@@ -62,13 +60,13 @@ func Articles_CreateArticle(
 	assert.True(t, fa.CreatedAtUTC.Before(now))
 	assert.True(t, fa.UpdatedAtUTC.After(now))
 
-	r.Users.UpdateUserByEmail(
+	r.UpdateUserByEmail(
 		"author@hospitable.com",
-		func(u *userdomain.User) (*userdomain.User, error) {
+		func(u *domain.User) (*domain.User, error) {
 			u.Email = "author@whole.com"
 			return u, nil
 		})
-	fa, err = r.Articles.GetArticleBySlug("hospitable-title")
+	fa, err = r.GetArticleBySlug("hospitable-title")
 	require.NoError(t, err)
 	assert.Equal(t, "author@whole.com", fa.AuthorEmail)
 	assert.Equal(t, "author@whole.com", fa.Author.Email())
@@ -76,20 +74,20 @@ func Articles_CreateArticle(
 
 func Articles_GetArticleBySlug(
 	t *testing.T,
-	r *adapters.RepositoryImplementation,
+	r domain.Repository,
 ) {
 	u := testAuthor("observant")
-	r.Users.CreateUser(u)
+	r.CreateUser(u)
 
 	now := time.Now().UTC()
 	a := testArticle("observant")
-	_, err := r.Articles.CreateArticle(a)
+	_, err := r.CreateArticle(a)
 	require.NoError(t, err)
 
-	_, err = r.Articles.GetArticleBySlug("befitting-title")
-	assert.ErrorIs(t, err, articledomain.ErrNotFound)
+	_, err = r.GetArticleBySlug("befitting-title")
+	assert.ErrorIs(t, err, domain.ErrArticleNotFound)
 
-	fa, err := r.Articles.GetArticleBySlug(a.Slug)
+	fa, err := r.GetArticleBySlug(a.Slug)
 	assert.NoError(t, err)
 	assert.Equal(t, a.Slug, fa.Slug)
 	assert.Equal(t, a.Title, fa.Title)
@@ -103,64 +101,64 @@ func Articles_GetArticleBySlug(
 	assert.True(t, fa.CreatedAtUTC.After(now))
 	assert.Equal(t, fa.CreatedAtUTC, fa.UpdatedAtUTC)
 
-	r.Articles.UpdateArticleBySlug(
+	r.UpdateArticleBySlug(
 		"observant-title",
-		func(a *articledomain.Article) (*articledomain.Article, error) {
+		func(a *domain.Article) (*domain.Article, error) {
 			a.SetTitle("silent title")
 			return a, nil
 		})
-	_, err = r.Articles.GetArticleBySlug("observant-title")
-	assert.ErrorIs(t, err, articledomain.ErrNotFound)
-	_, err = r.Articles.GetArticleBySlug("silent-title")
+	_, err = r.GetArticleBySlug("observant-title")
+	assert.ErrorIs(t, err, domain.ErrArticleNotFound)
+	_, err = r.GetArticleBySlug("silent-title")
 	assert.NoError(t, err)
 
-	r.Users.CreateUser(testAuthor("modern"))
-	r.Articles.CreateArticle(testArticle("modern"))
-	_, err = r.Articles.UpdateArticleBySlug(
+	r.CreateUser(testAuthor("modern"))
+	r.CreateArticle(testArticle("modern"))
+	_, err = r.UpdateArticleBySlug(
 		"silent-title",
-		func(a *articledomain.Article) (*articledomain.Article, error) {
+		func(a *domain.Article) (*domain.Article, error) {
 			a.SetTitle("modern title")
 			return a, nil
 		})
-	assert.ErrorIs(t, err, articledomain.ErrDuplicateValue)
-	fa, err = r.Articles.GetArticleBySlug("silent-title")
+	assert.ErrorIs(t, err, domain.ErrDuplicateArticle)
+	fa, err = r.GetArticleBySlug("silent-title")
 	assert.NoError(t, err)
 }
 func Articles_DeleteArticle(
 	t *testing.T,
-	r *adapters.RepositoryImplementation,
+	r domain.Repository,
 ) {
-	r.Users.CreateUser(testAuthor("deranged"))
-	r.Articles.CreateArticle(testArticle("deranged"))
+	r.CreateUser(testAuthor("deranged"))
+	r.CreateArticle(testArticle("deranged"))
 
-	a, err := r.Articles.GetArticleBySlug("deranged-title")
+	a, err := r.GetArticleBySlug("deranged-title")
 	require.NoError(t, err)
-	err = r.Articles.DeleteArticle(&a.Article)
+	err = r.DeleteArticle(&a.Article)
 	assert.NoError(t, err)
-	a, err = r.Articles.GetArticleBySlug("deranged-title")
-	assert.ErrorIs(t, err, articledomain.ErrNotFound)
+	a, err = r.GetArticleBySlug("deranged-title")
+	assert.ErrorIs(t, err, domain.ErrArticleNotFound)
 
-	err = r.Articles.DeleteArticle(nil)
+	err = r.DeleteArticle(nil)
 	assert.NoError(t, err)
 }
 
 func Articles_LatestArticlesByCriteria(
 	t *testing.T,
-	r *adapters.RepositoryImplementation,
+	r domain.Repository,
 ) {
 	tt := "Articles_LatestArticlesByCriteria"
 
-	authors := []*userdomain.User{
+	authors := []*domain.User{
 		testAuthor("frail"),
 		testAuthor("simple"),
 		testAuthor("reminiscent"),
 	}
 	for _, a := range authors {
-		_, err := r.Users.CreateUser(a)
+		_, err := r.CreateUser(a)
 		require.NoError(t, err)
 	}
 
-	source := make([]*articledomain.AuthoredArticle, 0, 13)
+	source := make([]*domain.AuthoredArticle, 0, 13)
 	for i, adj := range []string{
 		"bright",
 		"colorful",
@@ -180,27 +178,27 @@ func Articles_LatestArticlesByCriteria(
 		a.AuthorEmail = authors[i%3].Email
 		a.TagList = append(a.TagList, tt)
 
-		_, err := r.Articles.CreateArticle(a)
+		_, err := r.CreateArticle(a)
 		require.NoError(t, err)
 
-		fa, err := r.Articles.GetArticleBySlug(a.Slug)
+		fa, err := r.GetArticleBySlug(a.Slug)
 		require.NoError(t, err)
 		source = append(source, fa)
 	}
 
 	cases := []struct {
 		Name  string
-		Query articledomain.ListCriteria
-		Try   func([]*articledomain.AuthoredArticle, error)
+		Query domain.ListCriteria
+		Try   func([]*domain.AuthoredArticle, error)
 	}{
 		{
 			"All Tagged",
-			articledomain.ListCriteria{
+			domain.ListCriteria{
 				Tag:    tt,
 				Offset: 0,
 				Limit:  13,
 			},
-			func(all []*articledomain.AuthoredArticle, err error) {
+			func(all []*domain.AuthoredArticle, err error) {
 				require.NoError(t, err)
 
 				assert.ElementsMatch(t, source, all)
@@ -208,12 +206,12 @@ func Articles_LatestArticlesByCriteria(
 		},
 		{
 			"Offset Limit Sort",
-			articledomain.ListCriteria{
+			domain.ListCriteria{
 				Tag:    tt,
 				Offset: 2,
 				Limit:  5,
 			},
-			func(some []*articledomain.AuthoredArticle, err error) {
+			func(some []*domain.AuthoredArticle, err error) {
 				require.NoError(t, err)
 
 				assert.Len(t, some, 5)
@@ -223,13 +221,13 @@ func Articles_LatestArticlesByCriteria(
 		},
 		{
 			"Authored By",
-			articledomain.ListCriteria{
+			domain.ListCriteria{
 				Tag:          tt,
 				Offset:       0,
 				Limit:        13,
 				AuthorEmails: []string{"author@frail.com", "author@simple.com"},
 			},
-			func(authored []*articledomain.AuthoredArticle, err error) {
+			func(authored []*domain.AuthoredArticle, err error) {
 				require.NoError(t, err)
 
 				assert.NotEmpty(t, authored)
@@ -244,17 +242,17 @@ func Articles_LatestArticlesByCriteria(
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
-			tc.Try(r.Articles.LatestArticlesByCriteria(tc.Query))
+			tc.Try(r.LatestArticlesByCriteria(tc.Query))
 		})
 	}
 }
 
 func Articles_UpdateCommentsBySlug(
 	t *testing.T,
-	r *adapters.RepositoryImplementation,
+	r domain.Repository,
 ) {
-	r.Users.CreateUser(testUser("simplistic"))
-	r.Users.CreateUser(testAuthor("envious"))
+	r.CreateUser(testUser("simplistic"))
+	r.CreateUser(testAuthor("envious"))
 
 	now := time.Now().UTC()
 	for _, adj := range []string{
@@ -265,13 +263,13 @@ func Articles_UpdateCommentsBySlug(
 		a := testArticle(adj)
 		a.AuthorEmail = "author@envious.com"
 
-		_, err := r.Articles.CreateArticle(a)
+		_, err := r.CreateArticle(a)
 		require.NoError(t, err)
 	}
 
-	c, err := r.Articles.UpdateCommentsBySlug(
+	c, err := r.UpdateCommentsBySlug(
 		"tedious-title",
-		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			err := a.AddComment("enchanting body", "user@simplistic.com")
 			if err != nil {
 				return nil, err
@@ -285,9 +283,9 @@ func Articles_UpdateCommentsBySlug(
 	assert.Equal(t, "user@simplistic.com", c.AuthorEmail)
 	assert.True(t, now.Before(c.CreatedAtUTC))
 
-	_, err = r.Articles.UpdateCommentsBySlug(
+	_, err = r.UpdateCommentsBySlug(
 		"tedious-title",
-		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			err := a.AddComment("quirky body", "user@simplistic.com")
 			if err != nil {
 				return nil, err
@@ -296,20 +294,20 @@ func Articles_UpdateCommentsBySlug(
 		})
 	require.NoError(t, err)
 
-	a, err := r.Articles.GetCommentsBySlug("tedious-title")
+	a, err := r.GetCommentsBySlug("tedious-title")
 	require.NoError(t, err)
 
 	assert.Len(t, a.Comments, 2)
 
-	_, err = r.Articles.UpdateCommentsBySlug(
+	_, err = r.UpdateCommentsBySlug(
 		"tedious-title",
-		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			a.RemoveComment(c.ID)
 			return a, nil
 		})
 	require.NoError(t, err)
 
-	a, err = r.Articles.GetCommentsBySlug("tedious-title")
+	a, err = r.GetCommentsBySlug("tedious-title")
 	require.NoError(t, err)
 
 	assert.Len(t, a.Comments, 1)
@@ -321,11 +319,11 @@ func Articles_UpdateCommentsBySlug(
 
 func Articles_DistinctTags(
 	t *testing.T,
-	r *adapters.RepositoryImplementation,
+	r domain.Repository,
 ) {
 	tt := "Articles_DistinctTags"
 
-	r.Users.CreateUser(testAuthor("threatening"))
+	r.CreateUser(testAuthor("threatening"))
 	for _, adj := range []string{
 		"stimulating",
 		"exultant",
@@ -335,11 +333,11 @@ func Articles_DistinctTags(
 		a.AuthorEmail = "author@threatening.com"
 		a.TagList = append(a.TagList, tt)
 
-		_, err := r.Articles.CreateArticle(a)
+		_, err := r.CreateArticle(a)
 		require.NoError(t, err)
 	}
 
-	tags, err := r.Articles.DistinctTags()
+	tags, err := r.DistinctTags()
 	require.NoError(t, err)
 
 	assert.Contains(t, tags, "stimulating one", "stimulating two")
@@ -355,14 +353,14 @@ func Articles_DistinctTags(
 	}
 }
 
-func testAuthor(adj string) *userdomain.User {
+func testAuthor(adj string) *domain.User {
 	a := testUser(adj)
 	a.Email = fmt.Sprintf("author@%v.com", adj)
 	return a
 }
 
-func testArticle(adj string) (a *articledomain.Article) {
-	a, _ = articledomain.NewArticle(
+func testArticle(adj string) (a *domain.Article) {
+	a, _ = domain.NewArticle(
 		fmt.Sprintf("%v title", adj),
 		fmt.Sprintf("%v description", adj),
 		fmt.Sprintf("%v body", adj),

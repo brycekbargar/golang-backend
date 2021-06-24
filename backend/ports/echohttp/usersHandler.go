@@ -7,24 +7,24 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/labstack/echo/v4"
 
-	"github.com/brycekbargar/realworld-backend/domains/userdomain"
+	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/brycekbargar/realworld-backend/ports"
 )
 
 type usersHandler struct {
-	users       userdomain.Repository
+	repo        domain.Repository
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
 	jc          ports.JWTConfig
 }
 
 func newUsersHandler(
-	users userdomain.Repository,
+	repo domain.Repository,
 	authed echo.MiddlewareFunc,
 	maybeAuthed echo.MiddlewareFunc,
 	jc ports.JWTConfig) *usersHandler {
 	return &usersHandler{
-		users,
+		repo,
 		authed,
 		maybeAuthed,
 		jc,
@@ -84,7 +84,7 @@ func (r *usersHandler) create(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	created, err := userdomain.NewUserWithPassword(
+	created, err := domain.NewUserWithPassword(
 		u.User.Email,
 		u.User.Username,
 		u.User.Password,
@@ -95,8 +95,8 @@ func (r *usersHandler) create(c echo.Context) error {
 			err)
 	}
 
-	if _, err := r.users.CreateUser(created); err != nil {
-		if err == userdomain.ErrDuplicateValue {
+	if _, err := r.repo.CreateUser(created); err != nil {
+		if err == domain.ErrDuplicateUser {
 			return echo.NewHTTPError(
 				http.StatusBadRequest,
 				err)
@@ -132,7 +132,7 @@ func (r *usersHandler) login(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	authed, err := r.users.GetUserByEmail(l.User.Email)
+	authed, err := r.repo.GetUserByEmail(l.User.Email)
 	if err != nil {
 		return echo.ErrUnauthorized
 	}
@@ -163,9 +163,9 @@ func (r *usersHandler) user(c echo.Context) error {
 		return identityNotOk
 	}
 
-	found, err := r.users.GetUserByEmail(em)
+	found, err := r.repo.GetUserByEmail(em)
 	if err != nil {
-		if err == userdomain.ErrNotFound {
+		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
 		}
 		return err
@@ -193,9 +193,9 @@ func (r *usersHandler) update(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	found, err := r.users.UpdateUserByEmail(
+	found, err := r.repo.UpdateUserByEmail(
 		em,
-		func(u *userdomain.User) (*userdomain.User, error) {
+		func(u *domain.User) (*domain.User, error) {
 			if b.User.Email != "" {
 				u.Email = b.User.Email
 			}
@@ -214,7 +214,7 @@ func (r *usersHandler) update(c echo.Context) error {
 			return u.Validate()
 		})
 	if err != nil {
-		if err == userdomain.ErrNotFound {
+		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
 		}
 		return err
@@ -254,9 +254,9 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 		return echo.ErrBadRequest
 	}
 
-	found, err := r.users.GetUserByUsername(c.Param("username"))
+	found, err := r.repo.GetUserByUsername(c.Param("username"))
 	if err != nil {
-		if err == userdomain.ErrNotFound {
+		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
 		}
 		return err
@@ -264,9 +264,9 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 
 	following := false
 	if len(em) > 0 {
-		cu, err := r.users.GetUserByEmail(em)
+		cu, err := r.repo.GetUserByEmail(em)
 		if err != nil {
-			if err == userdomain.ErrNotFound {
+			if err == domain.ErrUserNotFound {
 				return echo.ErrNotFound
 			}
 			return err
@@ -295,22 +295,22 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	fu, err := r.users.GetUserByUsername(c.Param("username"))
+	fu, err := r.repo.GetUserByUsername(c.Param("username"))
 	if err != nil {
-		if err == userdomain.ErrNotFound {
+		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
 		}
 		return err
 	}
 
-	err = r.users.UpdateFanboyByEmail(
+	err = r.repo.UpdateFanboyByEmail(
 		em,
-		func(u *userdomain.Fanboy) (*userdomain.Fanboy, error) {
+		func(u *domain.Fanboy) (*domain.Fanboy, error) {
 			u.StartFollowing(fu.Email)
 			return u, nil
 		})
 	if err != nil {
-		if err == userdomain.ErrNotFound {
+		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
 		}
 		return err
@@ -336,22 +336,22 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	fu, err := r.users.GetUserByUsername(c.Param("username"))
+	fu, err := r.repo.GetUserByUsername(c.Param("username"))
 	if err != nil {
-		if err == userdomain.ErrNotFound {
+		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
 		}
 		return err
 	}
 
-	err = r.users.UpdateFanboyByEmail(
+	err = r.repo.UpdateFanboyByEmail(
 		em,
-		func(u *userdomain.Fanboy) (*userdomain.Fanboy, error) {
+		func(u *domain.Fanboy) (*domain.Fanboy, error) {
 			u.StopFollowing(fu.Email)
 			return u, nil
 		})
 	if err != nil {
-		if err == userdomain.ErrNotFound {
+		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
 		}
 		return err

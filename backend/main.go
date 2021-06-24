@@ -12,7 +12,6 @@ func main() {
 	echohttp.Start(
 		ports.DefaultJWTConfig("Replace Me"),
 		4123,
-		im.Users,
-		im.Articles,
+		im,
 	)
 }

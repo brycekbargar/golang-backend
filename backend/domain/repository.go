@@ -1,15 +1,21 @@
-package articledomain
+package domain
 
 import "errors"
+
+// ErrUserNotFound indicates the requested user was not found.
+var ErrUserNotFound = errors.New("user not found")
+
+// ErrDuplicateUser indicates the requested user could not be created because they already exist.
+var ErrDuplicateUser = errors.New("user has a duplicate username or email address")
 
 // ErrNoAuthor indicates when the author of an Article can't be found.
 var ErrNoAuthor = errors.New("author not found")
 
-// ErrNotFound indicates the requested article was not found.
-var ErrNotFound = errors.New("article not found")
+// ErrArticleNotFound indicates the requested article was not found.
+var ErrArticleNotFound = errors.New("article not found")
 
-// ErrDuplicateValue indicates the requested article could not be created because another article has the same slug.
-var ErrDuplicateValue = errors.New("article has a duplicate slug")
+// ErrDuplicateArticle indicates the requested article could not be created because another article has the same slug.
+var ErrDuplicateArticle = errors.New("article has a duplicate slug")
 
 // ListCriteria is the set of optional parameters to page/filter the Articles.
 type ListCriteria struct {
@@ -20,9 +26,22 @@ type ListCriteria struct {
 	Offset               int
 }
 
-// Repository allows performing abstracted I/O operations on articles.
+// Repository allows performing abstracted I/O operations on users.
 type Repository interface {
-	// Create creates a new article.
+	// CreateUser creates a new user.
+	CreateUser(*User) (*User, error)
+	// GetUserByEmail finds a single user based on their email address.
+	GetUserByEmail(string) (*Fanboy, error)
+	// GetUserByUsername finds a single user based on their username.
+	GetUserByUsername(string) (*User, error)
+	// UpdateUserByEmail finds a single user based on their email address,
+	// then applies the provide mutations.
+	UpdateUserByEmail(string, func(*User) (*User, error)) (*User, error)
+	// UpdateFanboyByEmail finds a single user based on their email address,
+	// then applies the provide mutations (probably to the follower list).
+	UpdateFanboyByEmail(string, func(*Fanboy) (*Fanboy, error)) error
+
+	// CreateArticle creates a new article.
 	CreateArticle(*Article) (*AuthoredArticle, error)
 	// LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
 	LatestArticlesByCriteria(ListCriteria) ([]*AuthoredArticle, error)

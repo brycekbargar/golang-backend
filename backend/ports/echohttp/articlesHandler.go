@@ -6,8 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/brycekbargar/realworld-backend/domains/articledomain"
-	"github.com/brycekbargar/realworld-backend/domains/userdomain"
+	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/gosimple/slug"
 	"github.com/labstack/echo/v4"
 )
@@ -19,21 +18,18 @@ func init() {
 }
 
 type articlesHandler struct {
-	users       userdomain.Repository
-	articles    articledomain.Repository
+	repo        domain.Repository
 	authed      echo.MiddlewareFunc
 	maybeAuthed echo.MiddlewareFunc
 }
 
 func newArticlesHandler(
-	users userdomain.Repository,
-	articles articledomain.Repository,
+	repo domain.Repository,
 	authed echo.MiddlewareFunc,
 	maybeAuthed echo.MiddlewareFunc,
 ) *articlesHandler {
 	return &articlesHandler{
-		users,
-		articles,
+		repo,
 		authed,
 		maybeAuthed,
 	}
@@ -84,25 +80,25 @@ type list struct {
 
 func (h *articlesHandler) list(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	var u *userdomain.Fanboy
+	var u *domain.Fanboy
 	if ok {
-		u, _ = h.users.GetUserByEmail(em)
+		u, _ = h.repo.GetUserByEmail(em)
 	}
 
-	lc := articledomain.ListCriteria{
+	lc := domain.ListCriteria{
 		Tag:   ctx.QueryParam("tag"),
 		Limit: 20,
 	}
 
 	a := ctx.QueryParam("author")
 	if len(a) > 0 {
-		if ae, err := h.users.GetUserByUsername(a); err == nil {
+		if ae, err := h.repo.GetUserByUsername(a); err == nil {
 			lc.AuthorEmails = []string{ae.Email}
 		}
 	}
 	f := ctx.QueryParam("favorited")
 	if len(f) > 0 {
-		if fe, err := h.users.GetUserByUsername(f); err == nil {
+		if fe, err := h.repo.GetUserByUsername(f); err == nil {
 			lc.FavoritedByUserEmail = fe.Email
 		}
 	}
@@ -116,7 +112,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 	}
 
 	// get all articles
-	al, err := h.articles.LatestArticlesByCriteria(lc)
+	al, err := h.repo.LatestArticlesByCriteria(lc)
 	if err != nil {
 		return err
 	}
@@ -155,12 +151,12 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 
 func (h *articlesHandler) feed(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.users.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
 
-	lc := articledomain.ListCriteria{
+	lc := domain.ListCriteria{
 		Limit:        20,
 		AuthorEmails: u.FollowingEmails(),
 	}
@@ -174,7 +170,7 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 	}
 
 	// Get the feed articles
-	al, err := h.articles.LatestArticlesByCriteria(lc)
+	al, err := h.repo.LatestArticlesByCriteria(lc)
 	if err != nil {
 		return err
 	}
@@ -217,13 +213,13 @@ type article struct {
 
 func (h *articlesHandler) article(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	var u *userdomain.Fanboy
+	var u *domain.Fanboy
 	if ok {
-		u, _ = h.users.GetUserByEmail(em)
+		u, _ = h.repo.GetUserByEmail(em)
 	}
 
 	// get the article
-	ar, err := h.articles.GetArticleBySlug(ctx.Param("slug"))
+	ar, err := h.repo.GetArticleBySlug(ctx.Param("slug"))
 	if err != nil {
 		return err
 	}
@@ -265,7 +261,7 @@ type create struct {
 
 func (h *articlesHandler) create(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.users.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
@@ -277,7 +273,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			err)
 	}
 
-	toCreate, err := articledomain.NewArticle(
+	toCreate, err := domain.NewArticle(
 		a.Article.Title,
 		a.Article.Description,
 		a.Article.Body,
@@ -290,9 +286,9 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			err)
 	}
 
-	created, err := h.articles.CreateArticle(toCreate)
+	created, err := h.repo.CreateArticle(toCreate)
 	if err != nil {
-		if err == userdomain.ErrDuplicateValue {
+		if err == domain.ErrDuplicateArticle {
 			return echo.NewHTTPError(
 				http.StatusBadRequest,
 				err)
@@ -332,9 +328,9 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	updated, err := h.articles.UpdateArticleBySlug(
+	updated, err := h.repo.UpdateArticleBySlug(
 		ctx.Param("slug"),
-		func(a *articledomain.Article) (*articledomain.Article, error) {
+		func(a *domain.Article) (*domain.Article, error) {
 			if a.AuthorEmail != em {
 				return nil, errors.New("articles can only be updated by their author")
 			}
@@ -382,7 +378,7 @@ func (h *articlesHandler) delete(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	ar, err := h.articles.GetArticleBySlug(ctx.Param("slug"))
+	ar, err := h.repo.GetArticleBySlug(ctx.Param("slug"))
 	if err != nil {
 		return err
 	}
@@ -390,7 +386,7 @@ func (h *articlesHandler) delete(ctx echo.Context) error {
 		return errors.New("articles can only be deleted by their author")
 	}
 
-	if err = h.articles.DeleteArticle(&ar.Article); err != nil {
+	if err = h.repo.DeleteArticle(&ar.Article); err != nil {
 		return err
 	}
 
@@ -411,12 +407,12 @@ type commentList struct {
 
 func (h *articlesHandler) commentList(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	var u *userdomain.Fanboy
+	var u *domain.Fanboy
 	if ok {
-		u, _ = h.users.GetUserByEmail(em)
+		u, _ = h.repo.GetUserByEmail(em)
 	}
 
-	ar, err := h.articles.GetCommentsBySlug(ctx.Param("slug"))
+	ar, err := h.repo.GetCommentsBySlug(ctx.Param("slug"))
 	if err != nil {
 		return err
 	}
@@ -425,7 +421,7 @@ func (h *articlesHandler) commentList(ctx echo.Context) error {
 		make([]commentComment, 0, len(ar.Comments)),
 	}
 	for _, c := range ar.Comments {
-		if a, err := h.users.GetUserByEmail(c.AuthorEmail); err == nil {
+		if a, err := h.repo.GetUserByEmail(c.AuthorEmail); err == nil {
 			// This is just ignoring comments where we can't get the author
 			// That's probably wrong?
 			res.Comments = append(res.Comments, commentComment{
@@ -460,7 +456,7 @@ type addComment struct {
 
 func (h *articlesHandler) addComment(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.users.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
@@ -471,9 +467,9 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 	}
 
 	// Make the thing
-	newc, err := h.articles.UpdateCommentsBySlug(
+	newc, err := h.repo.UpdateCommentsBySlug(
 		ctx.Param("slug"),
-		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			return a, a.AddComment(c.Comment.Body, em)
 		})
 	if err != nil {
@@ -505,9 +501,9 @@ func (h *articlesHandler) removeComment(ctx echo.Context) error {
 	cid := 1
 
 	// Delete the thing
-	_, err := h.articles.UpdateCommentsBySlug(
+	_, err := h.repo.UpdateCommentsBySlug(
 		ctx.Param("slug"),
-		func(a *articledomain.CommentedArticle) (*articledomain.CommentedArticle, error) {
+		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			for _, c := range a.Comments {
 				if c.ID == cid && c.AuthorEmail != em {
 					return nil, errors.New("comments can only be deleted by their author")
@@ -531,9 +527,9 @@ func (h *articlesHandler) favorite(ctx echo.Context) error {
 	}
 
 	// favorite
-	updated, err := h.articles.UpdateArticleBySlug(
+	updated, err := h.repo.UpdateArticleBySlug(
 		ctx.Param("slug"),
-		func(a *articledomain.Article) (*articledomain.Article, error) {
+		func(a *domain.Article) (*domain.Article, error) {
 			a.Favorite(em)
 			return a, nil
 		})
@@ -569,9 +565,9 @@ func (h *articlesHandler) unfavorite(ctx echo.Context) error {
 	}
 
 	// unfavorite
-	updated, err := h.articles.UpdateArticleBySlug(
+	updated, err := h.repo.UpdateArticleBySlug(
 		ctx.Param("slug"),
-		func(a *articledomain.Article) (*articledomain.Article, error) {
+		func(a *domain.Article) (*domain.Article, error) {
 			a.Unfavorite(em)
 			return a, nil
 		})
@@ -605,7 +601,7 @@ type tagList struct {
 }
 
 func (h *articlesHandler) tags(ctx echo.Context) error {
-	tags, err := h.articles.DistinctTags()
+	tags, err := h.repo.DistinctTags()
 	if err != nil {
 		return err
 	}

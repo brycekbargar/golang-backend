@@ -4,18 +4,18 @@ package inmemory
 import (
 	"strings"
 
-	"github.com/brycekbargar/realworld-backend/domains/userdomain"
+	"github.com/brycekbargar/realworld-backend/domain"
 )
 
 // Create creates a new user.
-func (r *implementation) CreateUser(u *userdomain.User) (*userdomain.User, error) {
+func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for e, v := range r.users {
 		if e == strings.ToLower(u.Email) ||
 			strings.ToLower(v.username) == strings.ToLower(u.Username) {
-			return nil, userdomain.ErrDuplicateValue
+			return nil, domain.ErrDuplicateUser
 		}
 	}
 
@@ -33,7 +33,7 @@ func (r *implementation) CreateUser(u *userdomain.User) (*userdomain.User, error
 }
 
 // GetUserByEmail finds a single user based on their username.
-func (r *implementation) GetUserByEmail(e string) (*userdomain.Fanboy, error) {
+func (r *implementation) GetUserByEmail(e string) (*domain.Fanboy, error) {
 	if u, ok := r.users[strings.ToLower(e)]; ok {
 
 		emails := strings.Split(u.following, ",")
@@ -42,8 +42,8 @@ func (r *implementation) GetUserByEmail(e string) (*userdomain.Fanboy, error) {
 			follows[em] = nil
 		}
 
-		return &userdomain.Fanboy{
-			User: userdomain.User{
+		return &domain.Fanboy{
+			User: domain.User{
 				Email:    u.email,
 				Username: u.username,
 				Bio:      u.bio,
@@ -54,11 +54,11 @@ func (r *implementation) GetUserByEmail(e string) (*userdomain.Fanboy, error) {
 		}, nil
 	}
 
-	return nil, userdomain.ErrNotFound
+	return nil, domain.ErrUserNotFound
 }
 
 // GetUserByUsername finds a single user based on their username.
-func (r *implementation) GetUserByUsername(un string) (*userdomain.User, error) {
+func (r *implementation) GetUserByUsername(un string) (*domain.User, error) {
 	for k, v := range r.users {
 		if strings.ToLower(v.username) == strings.ToLower(un) {
 			f, err := r.GetUserByEmail(k)
@@ -66,12 +66,12 @@ func (r *implementation) GetUserByUsername(un string) (*userdomain.User, error) 
 		}
 	}
 
-	return nil, userdomain.ErrNotFound
+	return nil, domain.ErrUserNotFound
 }
 
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
-func (r *implementation) UpdateUserByEmail(e string, update func(*userdomain.User) (*userdomain.User, error)) (*userdomain.User, error) {
+func (r *implementation) UpdateUserByEmail(e string, update func(*domain.User) (*domain.User, error)) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -95,7 +95,7 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*userdomain.Use
 
 			// Add the deleted user back if they've become a duplicate
 			r.users[strings.ToLower(removed.email)] = removed
-			return nil, userdomain.ErrDuplicateValue
+			return nil, domain.ErrDuplicateUser
 		}
 	}
 
@@ -132,8 +132,8 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*userdomain.Use
 	return &f.User, err
 }
 
-func (r *implementation) UpdateFanboyByEmail(e string, update func(*userdomain.Fanboy) (*userdomain.Fanboy, error)) error {
-	var uf *userdomain.Fanboy
+func (r *implementation) UpdateFanboyByEmail(e string, update func(*domain.Fanboy) (*domain.Fanboy, error)) error {
+	var uf *domain.Fanboy
 	err := func() error {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -157,7 +157,7 @@ func (r *implementation) UpdateFanboyByEmail(e string, update func(*userdomain.F
 
 		fr, ok := r.users[strings.ToLower(e)]
 		if !ok {
-			return userdomain.ErrNotFound
+			return domain.ErrUserNotFound
 		}
 		fr.following = strings.ToLower(strings.Join(follows, ","))
 
@@ -168,7 +168,7 @@ func (r *implementation) UpdateFanboyByEmail(e string, update func(*userdomain.F
 		return err
 	}
 
-	_, err = r.UpdateUserByEmail(e, func(*userdomain.User) (*userdomain.User, error) {
+	_, err = r.UpdateUserByEmail(e, func(*domain.User) (*domain.User, error) {
 		return &uf.User, nil
 	})
 	return err

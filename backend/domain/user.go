@@ -1,4 +1,4 @@
-package userdomain
+package domain
 
 import (
 	"strings"

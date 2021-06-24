@@ -1,9 +1,10 @@
-package articledomain_test
+package domain_test
 
 import (
 	"testing"
 
-	"github.com/brycekbargar/realworld-backend/domains/articledomain"
+	"github.com/brycekbargar/realworld-backend/domain"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +15,7 @@ func TestNewArticle(t *testing.T) {
 	t.Run("Title is slugified", func(t *testing.T) {
 		t.Parallel()
 
-		a, err := articledomain.NewArticle(
+		a, err := domain.NewArticle(
 			"tough title",
 			"tough description",
 			"tough body",
@@ -29,7 +30,7 @@ func TestNewArticle(t *testing.T) {
 	t.Run("Validation happens", func(t *testing.T) {
 		t.Parallel()
 
-		a, err := articledomain.NewArticle(
+		a, err := domain.NewArticle(
 			"purple title",
 			"purple description",
 			"purple body",
@@ -44,7 +45,7 @@ func TestNewArticle(t *testing.T) {
 func TestArticle_SetTitle(t *testing.T) {
 	t.Parallel()
 
-	a, err := articledomain.NewArticle(
+	a, err := domain.NewArticle(
 		"fine title",
 		"fine description",
 		"fine body",
@@ -62,11 +63,11 @@ func TestArticle_Validate(t *testing.T) {
 
 	cases := []struct {
 		Name    string
-		Article *articledomain.Article
+		Article *domain.Article
 	}{
 		{
 			"Invalid Slug",
-			&articledomain.Article{
+			&domain.Article{
 				Slug:        "%#&@*( def not a wanting slug",
 				Title:       "wanting title",
 				Description: "wanting description",
@@ -76,7 +77,7 @@ func TestArticle_Validate(t *testing.T) {
 		},
 		{
 			"Missing Slug",
-			&articledomain.Article{
+			&domain.Article{
 				Title:       "garrulous title",
 				Description: "garrulous description",
 				Body:        "garrulous body",
@@ -85,7 +86,7 @@ func TestArticle_Validate(t *testing.T) {
 		},
 		{
 			"Missing Title",
-			&articledomain.Article{
+			&domain.Article{
 				Slug:        "feeble-slug",
 				Description: "feeble description",
 				Body:        "feeble body",
@@ -94,7 +95,7 @@ func TestArticle_Validate(t *testing.T) {
 		},
 		{
 			"Missing Description",
-			&articledomain.Article{
+			&domain.Article{
 				Slug:        "majestic-slug",
 				Title:       "majestic title",
 				Body:        "majestic body",
@@ -103,7 +104,7 @@ func TestArticle_Validate(t *testing.T) {
 		},
 		{
 			"Missing Body",
-			&articledomain.Article{
+			&domain.Article{
 				Slug:        "thundering-slug",
 				Title:       "thundering title",
 				Description: "thundering description",
@@ -112,7 +113,7 @@ func TestArticle_Validate(t *testing.T) {
 		},
 		{
 			"Missing Author",
-			&articledomain.Article{
+			&domain.Article{
 				Slug:        "noxious-slug",
 				Title:       "noxious title",
 				Description: "noxious description",
@@ -121,7 +122,7 @@ func TestArticle_Validate(t *testing.T) {
 		},
 		{
 			"Invalid Author",
-			&articledomain.Article{
+			&domain.Article{
 				Slug:        "daffy-slug",
 				Title:       "daffy title",
 				Description: "daffy description",
@@ -145,7 +146,7 @@ func TestArticle_Validate(t *testing.T) {
 	t.Run("Ok", func(t *testing.T) {
 		t.Parallel()
 
-		a := &articledomain.Article{
+		a := &domain.Article{
 			Slug:        "perpetual-slug",
 			Title:       "perpetual title",
 			Description: "perpetual description",
@@ -162,9 +163,9 @@ func TestArticle_Validate(t *testing.T) {
 func TestArticle_Comments(t *testing.T) {
 	t.Parallel()
 
-	ca := articledomain.CommentedArticle{
-		Article: articledomain.Article{},
-		Comments: []*articledomain.Comment{
+	ca := domain.CommentedArticle{
+		Article: domain.Article{},
+		Comments: []*domain.Comment{
 			{ID: 5},
 			{ID: 8},
 			{ID: 13},
@@ -188,7 +189,7 @@ func TestArticle_Comments(t *testing.T) {
 func TestArticle_Favorites(t *testing.T) {
 	t.Parallel()
 
-	a := articledomain.Article{
+	a := domain.Article{
 		FavoritedBy: make(map[string]interface{}),
 	}
 

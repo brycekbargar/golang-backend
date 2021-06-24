@@ -4,17 +4,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brycekbargar/realworld-backend/adapters"
+	"github.com/brycekbargar/realworld-backend/domain"
 )
 
 // NewInstance creates a new instance of the In-Memory store with the repository interface implementations
-func NewInstance() *adapters.RepositoryImplementation {
+func NewInstance() domain.Repository {
 	i := &implementation{
 		&sync.Mutex{},
 		make(map[string]*userRecord),
 		make(map[string]*articleRecord),
 	}
-	return &adapters.RepositoryImplementation{Users: i, Articles: i}
+	return i
 }
 
 type implementation struct {
