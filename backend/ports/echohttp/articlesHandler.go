@@ -253,14 +253,6 @@ func (h *articlesHandler) commentList(ctx echo.Context) error {
 		serialization.ArticleToCommentList(ar, h.repo.GetAuthorByEmail, u))
 }
 
-type addCommentComment struct {
-	Body string `json:"body"`
-}
-
-type addComment struct {
-	Comment addCommentComment `json:"comment"`
-}
-
 func (h *articlesHandler) addComment(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
 	u, err := h.repo.GetUserByEmail(em)
@@ -268,8 +260,8 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	c := new(addComment)
-	if err := ctx.Bind(c); err != nil {
+	body, err := serialization.CommentToBody(ctx.Bind)
+	if err != nil {
 		return echo.ErrBadRequest
 	}
 
@@ -277,7 +269,7 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 	newc, err := h.repo.UpdateCommentsBySlug(
 		ctx.Param("slug"),
 		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
-			return a, a.AddComment(c.Comment.Body, em)
+			return a, a.AddComment(body, em)
 		})
 	if err != nil {
 		return err

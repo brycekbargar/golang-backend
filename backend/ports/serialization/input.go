@@ -129,3 +129,23 @@ func UpdateArticleToDelta(
 		}
 	}, nil
 }
+
+type addCommentComment struct {
+	Body string `json:"body"`
+}
+
+type addComment struct {
+	Comment addCommentComment `json:"comment"`
+}
+
+// CommentTo converts a input serializable comment to a body string.
+func CommentToBody(
+	bind func(interface{}) error,
+) (string, error) {
+	c := new(addComment)
+	if err := bind(c); err != nil {
+		return "", err
+	}
+
+	return c.Comment.Body, nil
+}
