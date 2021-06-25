@@ -61,24 +61,6 @@ type author struct {
 	Following bool   `json:"following"`
 }
 
-type articleArticle struct {
-	Slug           string    `json:"slug"`
-	Title          string    `json:"title"`
-	Description    string    `json:"description"`
-	Body           string    `json:"body"`
-	TagList        []string  `json:"tagList"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
-	Favorited      bool      `json:"favorited"`
-	FavoritesCount int       `json:"favoritesCount"`
-	Author         author    `json:"author"`
-}
-
-type list struct {
-	Articles      []articleArticle `json:"articles"`
-	ArticlesCount int              `json:"articlesCount"`
-}
-
 func (h *articlesHandler) list(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
 	var u *domain.Fanboy
@@ -118,36 +100,9 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 		return err
 	}
 
-	res := list{
-		make([]articleArticle, 0, len(al)),
-		len(al),
-	}
-
-	for _, a := range al {
-		aa := articleArticle{
-			Slug:           a.Slug,
-			Title:          a.Title,
-			Description:    a.Description,
-			Body:           a.Body,
-			TagList:        a.TagList,
-			CreatedAt:      a.CreatedAtUTC,
-			UpdatedAt:      a.UpdatedAtUTC,
-			FavoritesCount: a.FavoriteCount,
-			Author: author{
-				Username: a.Email(),
-				Bio:      a.Bio(),
-				Image:    a.Image(),
-			},
-		}
-		if u != nil {
-			aa.Favorited = u.Favors(a.Slug)
-			aa.Author.Following = u.IsFollowing(a.Email())
-		}
-
-		res.Articles = append(res.Articles, aa)
-	}
-
-	return ctx.JSON(http.StatusOK, res)
+	return ctx.JSON(
+		http.StatusOK,
+		serialization.ManyAuthoredArticlesToArticles(al, u))
 }
 
 func (h *articlesHandler) feed(ctx echo.Context) error {
@@ -176,36 +131,9 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 		return err
 	}
 
-	res := list{
-		make([]articleArticle, 0, len(al)),
-		len(al),
-	}
-
-	for _, a := range al {
-		aa := articleArticle{
-			Slug:           a.Slug,
-			Title:          a.Title,
-			Description:    a.Description,
-			Body:           a.Body,
-			TagList:        a.TagList,
-			CreatedAt:      a.CreatedAtUTC,
-			UpdatedAt:      a.UpdatedAtUTC,
-			FavoritesCount: a.FavoriteCount,
-			Author: author{
-				Username: a.Email(),
-				Bio:      a.Bio(),
-				Image:    a.Image(),
-			},
-		}
-		if u != nil {
-			aa.Favorited = u.Favors(a.Slug)
-			aa.Author.Following = u.IsFollowing(a.Email())
-		}
-
-		res.Articles = append(res.Articles, aa)
-	}
-
-	return ctx.JSON(http.StatusOK, res)
+	return ctx.JSON(
+		http.StatusOK,
+		serialization.ManyAuthoredArticlesToArticles(al, u))
 }
 
 func (h *articlesHandler) article(ctx echo.Context) error {

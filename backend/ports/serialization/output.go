@@ -98,8 +98,8 @@ type article struct {
 }
 
 type list struct {
-	Articles      []articleArticle `json:"articles"`
-	ArticlesCount int              `json:"articlesCount"`
+	Articles      []interface{} `json:"articles"`
+	ArticlesCount int           `json:"articlesCount"`
 }
 
 // AuthoredArticleToArticle converts a domain article into an output serialiable article for the current user.
@@ -126,4 +126,20 @@ func AuthoredArticleToArticle(
 			},
 		},
 	}
+}
+
+// ManyAuthoredArticlesToArticles converts multiple domain articles into an output serialiable list of articles for the current user.
+func ManyAuthoredArticlesToArticles(
+	as []*domain.AuthoredArticle,
+	cu *domain.Fanboy,
+) interface{} {
+	res := list{
+		make([]interface{}, 0, len(as)),
+		len(as),
+	}
+	for _, a := range as {
+		res.Articles = append(res.Articles, AuthoredArticleToArticle(a, cu))
+	}
+
+	return res
 }
