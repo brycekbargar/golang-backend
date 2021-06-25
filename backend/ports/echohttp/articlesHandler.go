@@ -372,10 +372,14 @@ func (h *articlesHandler) removeComment(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	cid := 1
+	c := ctx.Param("id")
+	cid, err := strconv.Atoi(c)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
 
 	// Delete the thing
-	_, err := h.repo.UpdateCommentsBySlug(
+	_, err = h.repo.UpdateCommentsBySlug(
 		ctx.Param("slug"),
 		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			for _, c := range a.Comments {
