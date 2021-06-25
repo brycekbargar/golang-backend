@@ -143,3 +143,14 @@ func ManyAuthoredArticlesToArticles(
 
 	return res
 }
+
+type tagList struct {
+	Tags []string `json:"tags"`
+}
+
+// TagsToTagList converts a list of article tags to a output serializable list.
+func TagsToTaglist(
+	ts []string,
+) interface{} {
+	return &tagList{ts}
+}

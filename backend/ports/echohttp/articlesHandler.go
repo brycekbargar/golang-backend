@@ -456,17 +456,13 @@ func (h *articlesHandler) unfavorite(ctx echo.Context) error {
 		serialization.AuthoredArticleToArticle(found, u))
 }
 
-type tagList struct {
-	Tags []string `json:"tags"`
-}
-
 func (h *articlesHandler) tags(ctx echo.Context) error {
 	tags, err := h.repo.DistinctTags()
 	if err != nil {
 		return err
 	}
 
-	return ctx.JSON(http.StatusOK, tagList{
-		tags,
-	})
+	return ctx.JSON(
+		http.StatusOK,
+		serialization.TagsToTaglist(tags))
 }
