@@ -44,17 +44,6 @@ func (r *usersHandler) mapRoutes(g *echo.Group) {
 	g.DELETE("/profiles/:username/follow", r.unfollow, r.authed)
 }
 
-type register struct {
-	User registerUser `json:"user"`
-}
-type registerUser struct {
-	Email    string  `json:"email"`
-	Username string  `json:"username"`
-	Password *string `json:"password,omitempty"`
-	Bio      *string `json:"bio"`
-	Image    *string `json:"image"`
-}
-
 func makeJwt(r *usersHandler, e string) (string, error) {
 	token := jwt.New(r.jc.Method)
 
@@ -71,23 +60,15 @@ func makeJwt(r *usersHandler, e string) (string, error) {
 }
 
 func (r *usersHandler) create(c echo.Context) error {
-	u := new(register)
-	if err := c.Bind(u); err != nil {
-		return echo.ErrBadRequest
-	}
-
-	created, err := domain.NewUserWithPassword(
-		u.User.Email,
-		u.User.Username,
-		*u.User.Password,
-	)
+	user, err := serialization.RegisterToUser(c.Bind)
 	if err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
 			err)
 	}
 
-	if _, err := r.repo.CreateUser(created); err != nil {
+	created, err := r.repo.CreateUser(user)
+	if err != nil {
 		if err == domain.ErrDuplicateUser {
 			return echo.NewHTTPError(
 				http.StatusBadRequest,
@@ -96,7 +77,7 @@ func (r *usersHandler) create(c echo.Context) error {
 		return err
 	}
 
-	token, err := makeJwt(r, u.User.Email)
+	token, err := makeJwt(r, created.Email)
 	if err != nil {
 		return err
 	}
@@ -164,29 +145,17 @@ func (r *usersHandler) update(c echo.Context) error {
 		return identityNotOk
 	}
 
-	b := new(register)
-	if err := c.Bind(b); err != nil {
-		return echo.ErrBadRequest
+	delta, err := serialization.UpdateToDelta(c.Bind)
+	if err != nil {
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			err)
 	}
 
-	found, err := r.repo.UpdateUserByEmail(
+	updated, err := r.repo.UpdateUserByEmail(
 		em,
 		func(u *domain.User) (*domain.User, error) {
-			if b.User.Email != "" {
-				u.Email = b.User.Email
-			}
-			if b.User.Username != "" {
-				u.Username = b.User.Username
-			}
-			if b.User.Password != nil && *b.User.Password != "" {
-				u.SetPassword(*b.User.Password)
-			}
-			if b.User.Bio != nil {
-				u.Bio = *b.User.Bio
-			}
-			if b.User.Image != nil {
-				u.Image = *b.User.Image
-			}
+			delta(u)
 			return u.Validate()
 		})
 	if err != nil {
@@ -197,14 +166,14 @@ func (r *usersHandler) update(c echo.Context) error {
 	}
 
 	// Users can change their email so we need to make sure we're giving them a new token.
-	token, err := makeJwt(r, found.Email)
+	token, err := makeJwt(r, updated.Email)
 	if err != nil {
 		return err
 	}
 
 	return c.JSON(
 		http.StatusOK,
-		serialization.UserToUser(found, token))
+		serialization.UserToUser(updated, token))
 }
 
 func (r *usersHandler) profile(c echo.Context) (err error) {
