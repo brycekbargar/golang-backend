@@ -154,16 +154,6 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 		serialization.AuthoredArticleToArticle(ar, u))
 }
 
-type createArticle struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Body        string   `json:"body"`
-	TagList     []string `json:"tagList,omitempty"`
-}
-type create struct {
-	Article createArticle `json:"article"`
-}
-
 func (h *articlesHandler) create(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
 	u, err := h.repo.GetUserByEmail(em)
@@ -171,27 +161,14 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	a := new(create)
-	if err := ctx.Bind(a); err != nil {
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			err)
-	}
-
-	toCreate, err := domain.NewArticle(
-		a.Article.Title,
-		a.Article.Description,
-		a.Article.Body,
-		em,
-		a.Article.TagList...,
-	)
+	article, err := serialization.CreateToArticle(ctx.Bind, u)
 	if err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
 			err)
 	}
 
-	created, err := h.repo.CreateArticle(toCreate)
+	created, err := h.repo.CreateArticle(article)
 	if err != nil {
 		if err == domain.ErrDuplicateArticle {
 			return echo.NewHTTPError(
@@ -213,9 +190,11 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	b := new(create)
-	if err := ctx.Bind(b); err != nil {
-		return echo.ErrBadRequest
+	delta, err := serialization.UpdateArticleToDelta(ctx.Bind)
+	if err != nil {
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			err)
 	}
 
 	updated, err := h.repo.UpdateArticleBySlug(
@@ -224,19 +203,10 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 			if a.AuthorEmail != em {
 				return nil, errors.New("articles can only be updated by their author")
 			}
-			if b.Article.Title != "" {
-				a.SetTitle(b.Article.Title)
-			}
-			if b.Article.Description != "" {
-				a.Description = b.Article.Description
-			}
-			if b.Article.Body != "" {
-				a.Body = b.Article.Body
-			}
 
+			delta(a)
 			return a.Validate()
 		})
-
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,8 @@
 package serialization
 
-import "github.com/brycekbargar/realworld-backend/domain"
+import (
+	"github.com/brycekbargar/realworld-backend/domain"
+)
 
 type register struct {
 	User registerUser `json:"user"`
@@ -29,8 +31,8 @@ func RegisterToUser(
 	)
 }
 
-// RegisterToUser converts a input serializable user to a delta for a domain user.
-func UpdateToDelta(
+// UpdateUserToDelta converts a input serializable user to a delta for a domain user.
+func UpdateUserToDelta(
 	bind func(interface{}) error,
 ) (func(*domain.User), error) {
 	r := new(register)
@@ -75,4 +77,55 @@ func LoginToCredentials(
 	}
 
 	return l.User.Email, l.User.Password, nil
+}
+
+type createArticle struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Body        string   `json:"body"`
+	TagList     []string `json:"tagList,omitempty"`
+}
+type create struct {
+	Article createArticle `json:"article"`
+}
+
+// CreateToArticle converts a input serializable article to a domain article for the given author.
+func CreateToArticle(
+	bind func(interface{}) error,
+	a domain.Author,
+) (*domain.Article, error) {
+	ar := new(create)
+	if err := bind(ar); err != nil {
+		return nil, err
+	}
+
+	return domain.NewArticle(
+		ar.Article.Title,
+		ar.Article.Description,
+		ar.Article.Body,
+		a.GetEmail(),
+		ar.Article.TagList...,
+	)
+}
+
+// UpdateArticleToDelta converts a input article user to a delta for a domain article.
+func UpdateArticleToDelta(
+	bind func(interface{}) error,
+) (func(*domain.Article), error) {
+	ar := new(create)
+	if err := bind(ar); err != nil {
+		return nil, err
+	}
+
+	return func(a *domain.Article) {
+		if ar.Article.Title != "" {
+			a.SetTitle(ar.Article.Title)
+		}
+		if ar.Article.Description != "" {
+			a.Description = ar.Article.Description
+		}
+		if ar.Article.Body != "" {
+			a.Body = ar.Article.Body
+		}
+	}, nil
 }

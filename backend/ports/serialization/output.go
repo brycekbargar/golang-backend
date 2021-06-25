@@ -119,10 +119,10 @@ func AuthoredArticleToArticle(
 			FavoritesCount: a.FavoriteCount,
 			Favorited:      cu != nil && cu.Favors(a.Slug),
 			Author: author{
-				Username:  a.Email(),
-				Bio:       a.Bio(),
-				Image:     a.Image(),
-				Following: cu != nil && cu.IsFollowing(a.Email()),
+				Username:  a.GetEmail(),
+				Bio:       a.GetBio(),
+				Image:     a.GetImage(),
+				Following: cu != nil && cu.IsFollowing(a.GetEmail()),
 			},
 		},
 	}

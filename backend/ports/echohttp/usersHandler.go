@@ -139,7 +139,7 @@ func (r *usersHandler) update(c echo.Context) error {
 		return identityNotOk
 	}
 
-	delta, err := serialization.UpdateToDelta(c.Bind)
+	delta, err := serialization.UpdateUserToDelta(c.Bind)
 	if err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,

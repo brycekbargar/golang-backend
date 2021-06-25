@@ -33,13 +33,13 @@ type userRecord struct {
 	password  []byte
 }
 
-func (u userRecord) Email() string {
+func (u userRecord) GetEmail() string {
 	return u.email
 }
-func (u userRecord) Bio() string {
+func (u userRecord) GetBio() string {
 	return u.bio
 }
-func (u userRecord) Image() string {
+func (u userRecord) GetImage() string {
 	return u.image
 }
 

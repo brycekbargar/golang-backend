@@ -40,9 +40,19 @@ type AuthoredArticle struct {
 
 // Author is the author of an article.
 type Author interface {
-	Email() string
-	Bio() string
-	Image() string
+	GetEmail() string
+	GetBio() string
+	GetImage() string
+}
+
+func (u User) GetEmail() string {
+	return u.Email
+}
+func (u User) GetBio() string {
+	return u.Bio
+}
+func (u User) GetImage() string {
+	return u.Image
 }
 
 // NewArticle creates a new Article with the provided information and defaults for the rest.

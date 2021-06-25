@@ -31,9 +31,9 @@ func Articles_CreateArticle(
 	assert.Zero(t, ca.FavoriteCount)
 
 	assert.Equal(t, a.AuthorEmail, ca.AuthorEmail)
-	assert.Equal(t, a.AuthorEmail, ca.Author.Email())
-	assert.Equal(t, u.Bio, ca.Author.Bio())
-	assert.Equal(t, u.Image, ca.Author.Image())
+	assert.Equal(t, a.AuthorEmail, ca.Author.GetEmail())
+	assert.Equal(t, u.Bio, ca.Author.GetBio())
+	assert.Equal(t, u.Image, ca.Author.GetImage())
 
 	assert.True(t, ca.CreatedAtUTC.After(now))
 	assert.Equal(t, ca.CreatedAtUTC, ca.UpdatedAtUTC)
@@ -69,7 +69,7 @@ func Articles_CreateArticle(
 	fa, err = r.GetArticleBySlug("hospitable-title")
 	require.NoError(t, err)
 	assert.Equal(t, "author@whole.com", fa.AuthorEmail)
-	assert.Equal(t, "author@whole.com", fa.Author.Email())
+	assert.Equal(t, "author@whole.com", fa.Author.GetEmail())
 }
 
 func Articles_GetArticleBySlug(
@@ -94,9 +94,9 @@ func Articles_GetArticleBySlug(
 	assert.Equal(t, a.Body, fa.Body)
 
 	assert.Equal(t, a.AuthorEmail, fa.AuthorEmail)
-	assert.Equal(t, a.AuthorEmail, fa.Author.Email())
-	assert.Equal(t, u.Bio, fa.Author.Bio())
-	assert.Equal(t, u.Image, fa.Author.Image())
+	assert.Equal(t, a.AuthorEmail, fa.Author.GetEmail())
+	assert.Equal(t, u.Bio, fa.Author.GetBio())
+	assert.Equal(t, u.Image, fa.Author.GetImage())
 
 	assert.True(t, fa.CreatedAtUTC.After(now))
 	assert.Equal(t, fa.CreatedAtUTC, fa.UpdatedAtUTC)
