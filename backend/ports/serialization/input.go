@@ -56,3 +56,23 @@ func UpdateToDelta(
 		}
 	}, nil
 }
+
+type login struct {
+	User loginUser `json:"user"`
+}
+type loginUser struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// LoginToCredentials converts a input serializable credential set to credentials.
+func LoginToCredentials(
+	bind func(interface{}) error,
+) (email string, password string, err error) {
+	l := new(login)
+	if err := bind(l); err != nil {
+		return "", "", err
+	}
+
+	return l.User.Email, l.User.Password, nil
+}

@@ -87,26 +87,20 @@ func (r *usersHandler) create(c echo.Context) error {
 		serialization.UserToUser(created, token))
 }
 
-type login struct {
-	User loginUser `json:"user"`
-}
-type loginUser struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func (r *usersHandler) login(c echo.Context) error {
-	l := new(login)
-	if err := c.Bind(l); err != nil {
-		return echo.ErrBadRequest
+	em, pw, err := serialization.LoginToCredentials(c.Bind)
+	if err != nil {
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			err)
 	}
 
-	authed, err := r.repo.GetUserByEmail(l.User.Email)
+	authed, err := r.repo.GetUserByEmail(em)
 	if err != nil {
 		return echo.ErrUnauthorized
 	}
 
-	if pw, err := authed.HasPassword(l.User.Password); !pw || err != nil {
+	if ok, err := authed.HasPassword(pw); !ok || err != nil {
 		return echo.ErrUnauthorized
 	}
 
@@ -219,7 +213,7 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	fu, err := r.repo.GetUserByUsername(c.Param("username"))
+	found, err := r.repo.GetUserByUsername(c.Param("username"))
 	if err != nil {
 		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
@@ -230,7 +224,7 @@ func (r *usersHandler) follow(c echo.Context) error {
 	err = r.repo.UpdateFanboyByEmail(
 		em,
 		func(u *domain.Fanboy) (*domain.Fanboy, error) {
-			u.StartFollowing(fu.Email)
+			u.StartFollowing(found.Email)
 			return u, nil
 		})
 	if err != nil {
@@ -242,7 +236,7 @@ func (r *usersHandler) follow(c echo.Context) error {
 
 	return c.JSON(
 		http.StatusOK,
-		serialization.UserToProfile(fu, serialization.Following))
+		serialization.UserToProfile(found, serialization.Following))
 }
 
 func (r *usersHandler) unfollow(c echo.Context) error {
@@ -255,7 +249,7 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	fu, err := r.repo.GetUserByUsername(c.Param("username"))
+	found, err := r.repo.GetUserByUsername(c.Param("username"))
 	if err != nil {
 		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
@@ -266,7 +260,7 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 	err = r.repo.UpdateFanboyByEmail(
 		em,
 		func(u *domain.Fanboy) (*domain.Fanboy, error) {
-			u.StopFollowing(fu.Email)
+			u.StopFollowing(found.Email)
 			return u, nil
 		})
 	if err != nil {
@@ -278,5 +272,5 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 
 	return c.JSON(
 		http.StatusOK,
-		serialization.UserToProfile(fu, serialization.NotFollowing))
+		serialization.UserToProfile(found, serialization.NotFollowing))
 }
