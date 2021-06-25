@@ -33,6 +33,9 @@ type userRecord struct {
 	password  []byte
 }
 
+func (u userRecord) GetUsername() string {
+	return u.username
+}
 func (u userRecord) GetEmail() string {
 	return u.email
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/brycekbargar/realworld-backend/ports/serialization"
@@ -237,18 +236,6 @@ func (h *articlesHandler) delete(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusOK)
 }
 
-type commentComment struct {
-	ID        int       `json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	Body      string    `json:"body"`
-	Author    author    `json:"author"`
-}
-
-type commentList struct {
-	Comments []commentComment `json:"comments"`
-}
-
 func (h *articlesHandler) commentList(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
 	var u *domain.Fanboy
@@ -261,33 +248,9 @@ func (h *articlesHandler) commentList(ctx echo.Context) error {
 		return err
 	}
 
-	res := commentList{
-		make([]commentComment, 0, len(ar.Comments)),
-	}
-	for _, c := range ar.Comments {
-		if a, err := h.repo.GetUserByEmail(c.AuthorEmail); err == nil {
-			// This is just ignoring comments where we can't get the author
-			// That's probably wrong?
-			res.Comments = append(res.Comments, commentComment{
-				c.ID,
-				c.CreatedAtUTC,
-				c.CreatedAtUTC,
-				c.Body,
-				author{
-					a.Username,
-					a.Bio,
-					a.Image,
-					u.IsFollowing(a.Email),
-				},
-			})
-		}
-	}
-
-	return ctx.JSON(http.StatusOK, res)
-}
-
-type comment struct {
-	Comment commentComment `json:"comment"`
+	return ctx.JSON(
+		http.StatusOK,
+		serialization.ArticleToCommentList(ar, h.repo.GetAuthorByEmail, u))
 }
 
 type addCommentComment struct {
@@ -320,20 +283,9 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 		return err
 	}
 
-	return ctx.JSON(http.StatusCreated, comment{
-		commentComment{
-			newc.ID,
-			newc.CreatedAtUTC,
-			newc.CreatedAtUTC,
-			newc.Body,
-			author{
-				u.Username,
-				u.Bio,
-				u.Image,
-				false,
-			},
-		},
-	})
+	return ctx.JSON(
+		http.StatusOK,
+		serialization.CommentToComment(newc, u, u))
 }
 
 func (h *articlesHandler) removeComment(ctx echo.Context) error {

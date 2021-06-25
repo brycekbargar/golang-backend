@@ -94,7 +94,7 @@ type articleArticle struct {
 }
 
 type article struct {
-	Article articleArticle `json:"article"`
+	Article interface{} `json:"article"`
 }
 
 type list struct {
@@ -102,30 +102,35 @@ type list struct {
 	ArticlesCount int           `json:"articlesCount"`
 }
 
+func internalArticle(
+	a *domain.AuthoredArticle,
+	cu *domain.Fanboy,
+) interface{} {
+	return &articleArticle{
+		Slug:           a.Slug,
+		Title:          a.Title,
+		Description:    a.Description,
+		Body:           a.Body,
+		TagList:        a.TagList,
+		CreatedAt:      a.CreatedAtUTC,
+		UpdatedAt:      a.UpdatedAtUTC,
+		FavoritesCount: a.FavoriteCount,
+		Favorited:      cu != nil && cu.Favors(a.Slug),
+		Author: author{
+			Username:  a.GetUsername(),
+			Bio:       a.GetBio(),
+			Image:     a.GetImage(),
+			Following: cu != nil && cu.IsFollowing(a.GetEmail()),
+		},
+	}
+}
+
 // AuthoredArticleToArticle converts a domain article into an output serialiable article for the current user.
 func AuthoredArticleToArticle(
 	a *domain.AuthoredArticle,
 	cu *domain.Fanboy,
 ) interface{} {
-	return &article{
-		articleArticle{
-			Slug:           a.Slug,
-			Title:          a.Title,
-			Description:    a.Description,
-			Body:           a.Body,
-			TagList:        a.TagList,
-			CreatedAt:      a.CreatedAtUTC,
-			UpdatedAt:      a.UpdatedAtUTC,
-			FavoritesCount: a.FavoriteCount,
-			Favorited:      cu != nil && cu.Favors(a.Slug),
-			Author: author{
-				Username:  a.GetEmail(),
-				Bio:       a.GetBio(),
-				Image:     a.GetImage(),
-				Following: cu != nil && cu.IsFollowing(a.GetEmail()),
-			},
-		},
-	}
+	return &article{internalArticle(a, cu)}
 }
 
 // ManyAuthoredArticlesToArticles converts multiple domain articles into an output serialiable list of articles for the current user.
@@ -138,7 +143,68 @@ func ManyAuthoredArticlesToArticles(
 		len(as),
 	}
 	for _, a := range as {
-		res.Articles = append(res.Articles, AuthoredArticleToArticle(a, cu))
+		res.Articles = append(res.Articles, internalArticle(a, cu))
+	}
+
+	return res
+}
+
+type commentComment struct {
+	ID        int       `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Body      string    `json:"body"`
+	Author    author    `json:"author"`
+}
+
+type comment struct {
+	Comment interface{} `json:"comment"`
+}
+
+type commentList struct {
+	Comments []interface{} `json:"comments"`
+}
+
+func internalComment(
+	c *domain.Comment,
+	a domain.Author,
+	cu *domain.Fanboy,
+) interface{} {
+	return &commentComment{
+		c.ID,
+		c.CreatedAtUTC,
+		c.CreatedAtUTC,
+		c.Body,
+		author{
+			a.GetUsername(),
+			a.GetBio(),
+			a.GetImage(),
+			cu.IsFollowing(a.GetEmail()),
+		},
+	}
+
+}
+
+func CommentToComment(
+	c *domain.Comment,
+	a domain.Author,
+	cu *domain.Fanboy,
+) interface{} {
+	return &comment{internalComment(c, a, cu)}
+}
+
+func ArticleToCommentList(
+	ar *domain.CommentedArticle,
+	author func(string) domain.Author,
+	cu *domain.Fanboy,
+) interface{} {
+	res := commentList{
+		make([]interface{}, 0, len(ar.Comments)),
+	}
+	for _, c := range ar.Comments {
+		if a := author(c.AuthorEmail); a != nil {
+			res.Comments = append(res.Comments, internalComment(c, a, cu))
+		}
 	}
 
 	return res

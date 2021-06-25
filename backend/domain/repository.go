@@ -32,6 +32,8 @@ type Repository interface {
 	CreateUser(*User) (*User, error)
 	// GetUserByEmail finds a single user based on their email address.
 	GetUserByEmail(string) (*Fanboy, error)
+	// GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
+	GetAuthorByEmail(string) Author
 	// GetUserByUsername finds a single user based on their username.
 	GetUserByUsername(string) (*User, error)
 	// UpdateUserByEmail finds a single user based on their email address,

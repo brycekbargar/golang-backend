@@ -40,11 +40,15 @@ type AuthoredArticle struct {
 
 // Author is the author of an article.
 type Author interface {
+	GetUsername() string
 	GetEmail() string
 	GetBio() string
 	GetImage() string
 }
 
+func (u User) GetUsername() string {
+	return u.Username
+}
 func (u User) GetEmail() string {
 	return u.Email
 }

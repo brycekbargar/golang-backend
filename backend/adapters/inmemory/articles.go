@@ -297,3 +297,12 @@ func (r *implementation) DistinctTags() ([]string, error) {
 
 	return tags, nil
 }
+
+// GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
+func (r *implementation) GetAuthorByEmail(e string) domain.Author {
+	if a, err := r.GetUserByEmail(e); err == nil {
+		return a
+	}
+
+	return nil
+}
