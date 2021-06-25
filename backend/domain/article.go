@@ -23,7 +23,6 @@ type Article struct {
 	CreatedAtUTC time.Time
 	UpdatedAtUTC time.Time
 	AuthorEmail  string `valid:"required,email"`
-	FavoritedBy  map[string]interface{}
 }
 
 // CommentedArticle is an individual post in the application with its comment information included.
@@ -36,6 +35,7 @@ type CommentedArticle struct {
 type AuthoredArticle struct {
 	Article
 	Author
+	FavoriteCount int
 }
 
 // Author is the author of an article.
@@ -54,7 +54,6 @@ func NewArticle(title string, description string, body string, authorEmail strin
 		Body:        body,
 		TagList:     tags,
 		AuthorEmail: authorEmail,
-		FavoritedBy: make(map[string]interface{}),
 	}).Validate()
 }
 
@@ -71,11 +70,6 @@ func (a *Article) Validate() (*Article, error) {
 func (a *Article) SetTitle(title string) {
 	a.Slug = slug.Make(title)
 	a.Title = title
-}
-
-// FavoriteCount is the number of users that have Favorited this Article.
-func (a Article) FavoriteCount() int {
-	return len(a.FavoritedBy)
 }
 
 // AddComment creates a new comment and adds it to this Article.
@@ -97,27 +91,4 @@ func (a *CommentedArticle) RemoveComment(id int) {
 			return
 		}
 	}
-}
-
-// IsAFavoriteOf checks to see if the given userEmail has favorited this article.
-func (a *Article) IsAFavoriteOf(userEmail string) bool {
-	if !govalidator.IsEmail(userEmail) {
-		return false
-	}
-
-	_, ok := a.FavoritedBy[userEmail]
-	return ok
-}
-
-// Favorite marks this Article as a favorite of the given userEmail.
-func (a *Article) Favorite(userEmail string) {
-	if !govalidator.IsEmail(userEmail) {
-		return
-	}
-	a.FavoritedBy[userEmail] = nil
-}
-
-// Unfavorite marks this Article as a no longer a favorite of the given userEmail.
-func (a *Article) Unfavorite(userEmail string) {
-	delete(a.FavoritedBy, userEmail)
 }

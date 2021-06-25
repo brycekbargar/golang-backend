@@ -25,6 +25,7 @@ func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
 		u.Bio,
 		u.Image,
 		"",
+		"",
 		u.Password,
 	}
 
@@ -42,6 +43,12 @@ func (r *implementation) GetUserByEmail(e string) (*domain.Fanboy, error) {
 			follows[em] = nil
 		}
 
+		slugs := strings.Split(u.favorites, ",")
+		favorites := make(map[string]interface{}, len(slugs))
+		for _, s := range slugs {
+			favorites[s] = nil
+		}
+
 		return &domain.Fanboy{
 			User: domain.User{
 				Email:    u.email,
@@ -51,6 +58,7 @@ func (r *implementation) GetUserByEmail(e string) (*domain.Fanboy, error) {
 				Password: u.password,
 			},
 			Following: follows,
+			Favorites: favorites,
 		}, nil
 	}
 
@@ -104,7 +112,7 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*domain.User) (
 
 		for _, v := range r.users {
 			// Make sure users following this one get an updated key
-			v.following = strings.ReplaceAll(v.following, prevEm, u.Email)
+			v.following = strings.ReplaceAll(v.following, prevEm, strings.ToLower(u.Email))
 		}
 		for _, v := range r.articles {
 			// Make sure articles this user authored get an updated key
@@ -114,9 +122,14 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*domain.User) (
 		}
 	}
 
-	follows := make([]string, len(f.Following))
+	follows := make([]string, 0, len(f.Following))
 	for k := range f.Following {
 		follows = append(follows, k)
+	}
+
+	favorites := make([]string, 0, len(f.Favorites))
+	for k := range f.Favorites {
+		favorites = append(favorites, k)
 	}
 
 	r.users[strings.ToLower(u.Email)] = &userRecord{
@@ -125,6 +138,7 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*domain.User) (
 		u.Bio,
 		u.Image,
 		strings.ToLower(strings.Join(follows, ",")),
+		strings.ToLower(strings.Join(favorites, ",")),
 		u.Password,
 	}
 
@@ -148,10 +162,17 @@ func (r *implementation) UpdateFanboyByEmail(e string, update func(*domain.Fanbo
 			return err
 		}
 
-		follows := make([]string, len(uf.Following))
+		follows := make([]string, 0, len(uf.Following))
 		for k := range uf.Following {
 			if k != "" {
 				follows = append(follows, k)
+			}
+		}
+
+		favorites := make([]string, 0, len(uf.Favorites))
+		for k := range uf.Favorites {
+			if k != "" {
+				favorites = append(favorites, k)
 			}
 		}
 
@@ -160,6 +181,7 @@ func (r *implementation) UpdateFanboyByEmail(e string, update func(*domain.Fanbo
 			return domain.ErrUserNotFound
 		}
 		fr.following = strings.ToLower(strings.Join(follows, ","))
+		fr.favorites = strings.ToLower(strings.Join(favorites, ","))
 
 		return nil
 	}()

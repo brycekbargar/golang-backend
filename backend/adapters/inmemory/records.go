@@ -29,6 +29,7 @@ type userRecord struct {
 	bio       string
 	image     string
 	following string
+	favorites string
 	password  []byte
 }
 
@@ -52,7 +53,6 @@ type articleRecord struct {
 	updatedAtUTC time.Time
 	author       string
 	comments     []*commentRecord
-	favoritedBy  map[string]interface{}
 }
 
 type commentRecord struct {

@@ -24,9 +24,13 @@ func Test_Users(t *testing.T) {
 		t.Parallel()
 		testcases.Users_GetUserByUsername(t, uut)
 	})
-	t.Run("Update Fanboy", func(t *testing.T) {
+	t.Run("Fanboy Following Users", func(t *testing.T) {
 		t.Parallel()
-		testcases.Users_UpdateFanboyByEmail(t, uut)
+		testcases.Users_UpdateFanboyByEmail_Following(t, uut)
+	})
+	t.Run("Fanboy Favoriting Articles", func(t *testing.T) {
+		t.Parallel()
+		testcases.Users_UpdateFanboyByEmail_Favorites(t, uut)
 	})
 }
 

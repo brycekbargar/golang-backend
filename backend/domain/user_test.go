@@ -168,3 +168,29 @@ func TestUser_Following(t *testing.T) {
 	assert.False(t, f.IsFollowing("definitely not an email"),
 		"because only valid emails can be followed")
 }
+
+func TestUser_Favorites(t *testing.T) {
+	t.Parallel()
+
+	f := domain.Fanboy{
+		Favorites: map[string]interface{}{
+			"tidy-title":    nil,
+			"berserk-title": nil,
+		},
+	}
+	assert.True(t, f.Favors("tidy-title"))
+	assert.True(t, f.Favors("berserk-title"))
+
+	assert.False(t, f.Favors("flippant-title"))
+	f.Favorite("flippant-title")
+	assert.True(t, f.Favors("flippant-title"))
+
+	f.Favorite("tidy-title")
+	assert.True(t, f.Favors("tidy-title"),
+		"because favoring is idempotent")
+
+	f.Unfavorite("tidy-title")
+	f.Unfavorite("tidy-title")
+	assert.False(t, f.Favors("tidy-title"),
+		"because favoring is idempotent")
+}

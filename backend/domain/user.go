@@ -25,6 +25,7 @@ type User struct {
 type Fanboy struct {
 	User
 	Following map[string]interface{}
+	Favorites map[string]interface{}
 }
 
 // NewUserWithPassword creates a new partially-hydrated User with the provide information.
@@ -75,7 +76,7 @@ func (u *User) HasPassword(password string) (bool, error) {
 	return true, nil
 }
 
-// IsFollowing checks if the provided user is currently being followed by this user.
+// FollowingEmails is the slice of user emails the user follows.
 func (u *Fanboy) FollowingEmails() []string {
 	emails := make([]string, 0)
 	for em := range u.Following {
@@ -107,4 +108,31 @@ func (u *Fanboy) StartFollowing(email string) {
 // StopFollowing tracks that the provided user should be unfollowed.
 func (u *Fanboy) StopFollowing(email string) {
 	delete(u.Following, strings.ToLower(email))
+}
+
+// FavoritedSlugs is the slice of article slugs the user favors.
+func (u *Fanboy) FavoritedSlugs() []string {
+	slugs := make([]string, 0)
+	for s := range u.Favorites {
+		if s != "" {
+			slugs = append(slugs, s)
+		}
+	}
+	return slugs
+}
+
+// Favors checks to see if the given user has favorited this article.
+func (u *Fanboy) Favors(slug string) bool {
+	_, ok := u.Favorites[strings.ToLower(slug)]
+	return ok
+}
+
+// Favorite marks this Article as a favorite of the given user.
+func (u *Fanboy) Favorite(slug string) {
+	u.Favorites[strings.ToLower(slug)] = nil
+}
+
+// Unfavorite marks this Article as a no longer a favorite of the given user.
+func (u *Fanboy) Unfavorite(slug string) {
+	delete(u.Favorites, strings.ToLower(slug))
 }

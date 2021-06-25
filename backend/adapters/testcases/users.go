@@ -122,7 +122,7 @@ func Users_GetUserByUsername(
 	assert.NoError(t, err)
 }
 
-func Users_UpdateFanboyByEmail(
+func Users_UpdateFanboyByEmail_Following(
 	t *testing.T,
 	r domain.Repository,
 ) {
@@ -178,6 +178,69 @@ func Users_UpdateFanboyByEmail(
 	assert.Len(t, fu.FollowingEmails(), 3)
 	assert.False(t, fu.IsFollowing("user@best.com"))
 	assert.False(t, fu.IsFollowing("not an email"))
+}
+
+func Users_UpdateFanboyByEmail_Favorites(
+	t *testing.T,
+	r domain.Repository,
+) {
+	u := testUser("luxuriant")
+	_, err := r.CreateUser(u)
+	require.NoError(t, err)
+
+	fu, err := r.GetUserByEmail(u.Email)
+	require.NoError(t, err)
+	assert.Empty(t, fu.FavoritedSlugs())
+
+	r.CreateUser(testAuthor("brainy"))
+	for _, adj := range []string{
+		"callous",
+		"aware",
+		"magnificient",
+	} {
+		a := testArticle(adj)
+		a.AuthorEmail = "author@brainy.com"
+
+		_, err := r.CreateArticle(a)
+		require.NoError(t, err)
+	}
+
+	r.UpdateFanboyByEmail(
+		"user@luxuriant.com",
+		func(f *domain.Fanboy) (*domain.Fanboy, error) {
+			f.Favorite("callous-title")
+			f.Favorite("aware-title")
+			return f, nil
+		})
+	fu, err = r.GetUserByEmail("user@luxuriant.com")
+	require.NoError(t, err)
+	assert.Len(t, fu.FavoritedSlugs(), 2)
+	assert.True(t, fu.Favors("callous-title"))
+	assert.False(t, fu.Favors("magnificient-title"))
+
+	r.UpdateArticleBySlug(
+		"callous-title",
+		func(a *domain.Article) (*domain.Article, error) {
+			a.SetTitle("careful-title")
+			return a, nil
+		})
+	fu, err = r.GetUserByEmail("user@luxuriant.com")
+	require.NoError(t, err)
+	assert.True(t, fu.Favors("careful-title"))
+	assert.False(t, fu.Favors("callous-title"))
+
+	r.UpdateFanboyByEmail(
+		"user@luxuriant.com",
+		func(f *domain.Fanboy) (*domain.Fanboy, error) {
+			f.Unfavorite("aware-title")
+			f.Favorite("magnificient-title")
+			f.Favorite("magnificient-title")
+			return f, nil
+		})
+	fu, err = r.GetUserByEmail("user@luxuriant.com")
+	require.NoError(t, err)
+	assert.Len(t, fu.FavoritedSlugs(), 2)
+	assert.False(t, fu.Favors("aware-title"))
 }
 
 func testUser(adj string) *domain.User {

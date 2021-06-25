@@ -186,27 +186,3 @@ func TestArticle_Comments(t *testing.T) {
 	ca.RemoveComment(8)
 	assert.Len(t, ca.Comments, 4)
 }
-func TestArticle_Favorites(t *testing.T) {
-	t.Parallel()
-
-	a := domain.Article{
-		FavoritedBy: make(map[string]interface{}),
-	}
-
-	a.Favorite("user@full.com")
-	a.Favorite("user@full.com")
-	assert.Equal(t, 1, a.FavoriteCount())
-
-	a.Favorite("user@slim.com")
-	a.Favorite("user@oceanic.com")
-	assert.Equal(t, 3, a.FavoriteCount())
-
-	a.Favorite("not mail")
-	assert.Equal(t, 3, a.FavoriteCount())
-
-	assert.True(t, a.IsAFavoriteOf("user@slim.com"))
-	a.Unfavorite("user@slim.com")
-	a.Unfavorite("user@slim.com")
-	assert.False(t, a.IsAFavoriteOf("user@slim.com"))
-	assert.Equal(t, 2, a.FavoriteCount())
-}

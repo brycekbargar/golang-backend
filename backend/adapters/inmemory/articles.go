@@ -34,7 +34,6 @@ func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArtic
 		now,
 		a.AuthorEmail,
 		make([]*commentRecord, 0),
-		map[string]interface{}{},
 	}
 	return r.GetArticleBySlug(a.Slug)
 }
@@ -51,6 +50,11 @@ func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
 	lim := 0
 
 	lf := strings.ToLower(query.FavoritedByUserEmail)
+	faveUser, ok := r.users[lf]
+	if lf != "" && !ok {
+		return nil, domain.ErrUserNotFound
+	}
+
 	lt := strings.ToLower(query.Tag)
 	am := make(map[string]interface{}, len(query.AuthorEmails))
 	for _, ae := range query.AuthorEmails {
@@ -76,8 +80,7 @@ func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
 			continue
 		}
 
-		_, f := ar.favoritedBy[lf]
-		if lf != "" && !f {
+		if lf != "" && !strings.Contains(faveUser.favorites, strings.ToLower(ar.slug)) {
 			continue
 		}
 
@@ -109,6 +112,13 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 			return nil, domain.ErrNoAuthor
 		}
 
+		fc := 0
+		for _, f := range r.users {
+			if strings.Contains(f.favorites, strings.ToLower(a.slug)) {
+				fc++
+			}
+		}
+
 		return &domain.AuthoredArticle{
 			Article: domain.Article{
 				Slug:         a.slug,
@@ -119,9 +129,9 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 				CreatedAtUTC: a.createdAtUTC,
 				UpdatedAtUTC: a.updatedAtUTC,
 				AuthorEmail:  a.author,
-				FavoritedBy:  a.favoritedBy,
 			},
-			Author: aa,
+			Author:        aa,
+			FavoriteCount: fc,
 		}, nil
 	}
 
@@ -164,6 +174,7 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 	if err != nil {
 		return nil, err
 	}
+	prevSlug := strings.ToLower(f.Slug)
 
 	a, err := update(&f.Article)
 	if err != nil {
@@ -186,6 +197,13 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 		}
 	}
 
+	if strings.ToLower(a.Slug) != prevSlug {
+		for _, v := range r.users {
+			// Make sure users favoriting this one get an updated key
+			v.favorites = strings.ReplaceAll(v.favorites, prevSlug, strings.ToLower(a.Slug))
+		}
+	}
+
 	now := time.Now().UTC()
 	r.articles[strings.ToLower(a.Slug)] = &articleRecord{
 		a.Slug,
@@ -197,7 +215,6 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 		now,
 		a.AuthorEmail,
 		make([]*commentRecord, 0),
-		map[string]interface{}{},
 	}
 
 	return r.GetArticleBySlug(a.Slug)

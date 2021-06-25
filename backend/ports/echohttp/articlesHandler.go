@@ -131,7 +131,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 			TagList:        a.TagList,
 			CreatedAt:      a.CreatedAtUTC,
 			UpdatedAt:      a.UpdatedAtUTC,
-			FavoritesCount: a.FavoriteCount(),
+			FavoritesCount: a.FavoriteCount,
 			Author: author{
 				Username: a.Email(),
 				Bio:      a.Bio(),
@@ -139,7 +139,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 			},
 		}
 		if u != nil {
-			aa.Favorited = a.IsAFavoriteOf(u.Email)
+			aa.Favorited = u.Favors(a.Slug)
 			aa.Author.Following = u.IsFollowing(a.Email())
 		}
 
@@ -189,7 +189,7 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 			TagList:        a.TagList,
 			CreatedAt:      a.CreatedAtUTC,
 			UpdatedAt:      a.UpdatedAtUTC,
-			FavoritesCount: a.FavoriteCount(),
+			FavoritesCount: a.FavoriteCount,
 			Author: author{
 				Username: a.Email(),
 				Bio:      a.Bio(),
@@ -197,7 +197,7 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 			},
 		}
 		if u != nil {
-			aa.Favorited = a.IsAFavoriteOf(u.Email)
+			aa.Favorited = u.Favors(a.Slug)
 			aa.Author.Following = u.IsFollowing(a.Email())
 		}
 
@@ -233,7 +233,7 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 			TagList:        ar.TagList,
 			CreatedAt:      ar.CreatedAtUTC,
 			UpdatedAt:      ar.UpdatedAtUTC,
-			FavoritesCount: ar.FavoriteCount(),
+			FavoritesCount: ar.FavoriteCount,
 			Author: author{
 				Username: ar.Email(),
 				Bio:      ar.Bio(),
@@ -242,7 +242,7 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 		},
 	}
 	if u != nil {
-		res.Article.Favorited = ar.IsAFavoriteOf(u.Email)
+		res.Article.Favorited = u.Favors(ar.Slug)
 		res.Article.Author.Following = u.IsFollowing(ar.Email())
 	}
 
@@ -306,7 +306,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			CreatedAt:      created.CreatedAtUTC,
 			UpdatedAt:      created.UpdatedAtUTC,
 			Favorited:      false,
-			FavoritesCount: created.FavoriteCount(),
+			FavoritesCount: created.FavoriteCount,
 			Author: author{
 				Username:  u.Email,
 				Bio:       u.Bio,
@@ -361,7 +361,7 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 			CreatedAt:      updated.CreatedAtUTC,
 			UpdatedAt:      updated.UpdatedAtUTC,
 			Favorited:      false,
-			FavoritesCount: updated.FavoriteCount(),
+			FavoritesCount: updated.FavoriteCount,
 			Author: author{
 				Username:  updated.Email(),
 				Bio:       updated.Bio(),
@@ -526,12 +526,16 @@ func (h *articlesHandler) favorite(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	// favorite
-	updated, err := h.repo.UpdateArticleBySlug(
-		ctx.Param("slug"),
-		func(a *domain.Article) (*domain.Article, error) {
-			a.Favorite(em)
-			return a, nil
+	found, err := h.repo.GetArticleBySlug(ctx.Param("slug"))
+	if err != nil {
+		return err
+	}
+
+	err = h.repo.UpdateFanboyByEmail(
+		em,
+		func(u *domain.Fanboy) (*domain.Fanboy, error) {
+			u.Favorite(ctx.Param("slug"))
+			return u, nil
 		})
 	if err != nil {
 		return err
@@ -539,19 +543,19 @@ func (h *articlesHandler) favorite(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, article{
 		articleArticle{
-			Slug:           updated.Slug,
-			Title:          updated.Title,
-			Description:    updated.Description,
-			Body:           updated.Body,
-			TagList:        updated.TagList,
-			CreatedAt:      updated.CreatedAtUTC,
-			UpdatedAt:      updated.UpdatedAtUTC,
+			Slug:           found.Slug,
+			Title:          found.Title,
+			Description:    found.Description,
+			Body:           found.Body,
+			TagList:        found.TagList,
+			CreatedAt:      found.CreatedAtUTC,
+			UpdatedAt:      found.UpdatedAtUTC,
 			Favorited:      true,
-			FavoritesCount: updated.FavoriteCount(),
+			FavoritesCount: found.FavoriteCount,
 			Author: author{
-				Username:  updated.Email(),
-				Bio:       updated.Bio(),
-				Image:     updated.Image(),
+				Username:  found.Email(),
+				Bio:       found.Bio(),
+				Image:     found.Image(),
 				Following: false,
 			},
 		},
@@ -564,12 +568,16 @@ func (h *articlesHandler) unfavorite(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	// unfavorite
-	updated, err := h.repo.UpdateArticleBySlug(
-		ctx.Param("slug"),
-		func(a *domain.Article) (*domain.Article, error) {
-			a.Unfavorite(em)
-			return a, nil
+	found, err := h.repo.GetArticleBySlug(ctx.Param("slug"))
+	if err != nil {
+		return err
+	}
+
+	err = h.repo.UpdateFanboyByEmail(
+		em,
+		func(u *domain.Fanboy) (*domain.Fanboy, error) {
+			u.Favorite(ctx.Param("slug"))
+			return u, nil
 		})
 	if err != nil {
 		return err
@@ -577,19 +585,19 @@ func (h *articlesHandler) unfavorite(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, article{
 		articleArticle{
-			Slug:           updated.Slug,
-			Title:          updated.Title,
-			Description:    updated.Description,
-			Body:           updated.Body,
-			TagList:        updated.TagList,
-			CreatedAt:      updated.CreatedAtUTC,
-			UpdatedAt:      updated.UpdatedAtUTC,
+			Slug:           found.Slug,
+			Title:          found.Title,
+			Description:    found.Description,
+			Body:           found.Body,
+			TagList:        found.TagList,
+			CreatedAt:      found.CreatedAtUTC,
+			UpdatedAt:      found.UpdatedAtUTC,
 			Favorited:      false,
-			FavoritesCount: updated.FavoriteCount(),
+			FavoritesCount: found.FavoriteCount,
 			Author: author{
-				Username:  updated.Email(),
-				Bio:       updated.Bio(),
-				Image:     updated.Image(),
+				Username:  found.Email(),
+				Bio:       found.Bio(),
+				Image:     found.Image(),
 				Following: false,
 			},
 		},

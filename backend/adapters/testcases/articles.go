@@ -28,7 +28,7 @@ func Articles_CreateArticle(
 	assert.Equal(t, a.Slug, ca.Slug)
 	assert.Equal(t, a.Title, ca.Title)
 	assert.Equal(t, a.Body, ca.Body)
-	assert.Empty(t, a.FavoritedBy)
+	assert.Zero(t, ca.FavoriteCount)
 
 	assert.Equal(t, a.AuthorEmail, ca.AuthorEmail)
 	assert.Equal(t, a.AuthorEmail, ca.Author.Email())
