@@ -44,25 +44,15 @@ func (r *usersHandler) mapRoutes(g *echo.Group) {
 	g.DELETE("/profiles/:username/follow", r.unfollow, r.authed)
 }
 
-type user struct {
-	User userUser `json:"user"`
-}
-type userUser struct {
-	Email    string  `json:"email"`
-	Token    string  `json:"token"`
-	Username string  `json:"username"`
-	Bio      *string `json:"bio"`
-	Image    *string `json:"image"`
-	Password *string `json:"password,omitempty"`
-}
-
 type register struct {
 	User registerUser `json:"user"`
 }
 type registerUser struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Email    string  `json:"email"`
+	Username string  `json:"username"`
+	Password *string `json:"password,omitempty"`
+	Bio      *string `json:"bio"`
+	Image    *string `json:"image"`
 }
 
 func makeJwt(r *usersHandler, e string) (string, error) {
@@ -89,7 +79,7 @@ func (r *usersHandler) create(c echo.Context) error {
 	created, err := domain.NewUserWithPassword(
 		u.User.Email,
 		u.User.Username,
-		u.User.Password,
+		*u.User.Password,
 	)
 	if err != nil {
 		return echo.NewHTTPError(
@@ -111,13 +101,9 @@ func (r *usersHandler) create(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, user{
-		userUser{
-			Email:    u.User.Email,
-			Token:    token,
-			Username: u.User.Username,
-		},
-	})
+	return c.JSON(
+		http.StatusOK,
+		serialization.UserToUser(created, token))
 }
 
 type login struct {
@@ -148,15 +134,9 @@ func (r *usersHandler) login(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, user{
-		userUser{
-			Email:    authed.Email,
-			Username: authed.Username,
-			Token:    token,
-			Bio:      optional(authed.Bio),
-			Image:    optional(authed.Image),
-		},
-	})
+	return c.JSON(
+		http.StatusOK,
+		serialization.UserToUser(&authed.User, token))
 }
 
 func (r *usersHandler) user(c echo.Context) error {
@@ -173,15 +153,9 @@ func (r *usersHandler) user(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, user{
-		userUser{
-			Email:    found.Email,
-			Username: found.Username,
-			Token:    token.Raw,
-			Bio:      optional(found.Bio),
-			Image:    optional(found.Image),
-		},
-	})
+	return c.JSON(
+		http.StatusOK,
+		serialization.UserToUser(&found.User, token.Raw))
 }
 
 func (r *usersHandler) update(c echo.Context) error {
@@ -190,7 +164,7 @@ func (r *usersHandler) update(c echo.Context) error {
 		return identityNotOk
 	}
 
-	b := new(user)
+	b := new(register)
 	if err := c.Bind(b); err != nil {
 		return echo.ErrBadRequest
 	}
@@ -228,25 +202,9 @@ func (r *usersHandler) update(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, user{
-		userUser{
-			Email:    found.Email,
-			Username: found.Username,
-			Token:    token,
-			Bio:      optional(found.Bio),
-			Image:    optional(found.Image),
-		},
-	})
-}
-
-type profile struct {
-	Profile profileUser `json:"profile"`
-}
-type profileUser struct {
-	Username  string `json:"username"`
-	Bio       string `json:"bio"`
-	Image     string `json:"image"`
-	Following bool   `json:"following"`
+	return c.JSON(
+		http.StatusOK,
+		serialization.UserToUser(found, token))
 }
 
 func (r *usersHandler) profile(c echo.Context) (err error) {
@@ -352,8 +310,4 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 	return c.JSON(
 		http.StatusOK,
 		serialization.UserToProfile(fu, serialization.NotFollowing))
-}
-
-func optional(s string) *string {
-	return &s
 }
