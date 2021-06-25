@@ -9,6 +9,7 @@ import (
 
 	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/brycekbargar/realworld-backend/ports"
+	"github.com/brycekbargar/realworld-backend/ports/serialization"
 )
 
 type usersHandler struct {
@@ -22,7 +23,8 @@ func newUsersHandler(
 	repo domain.Repository,
 	authed echo.MiddlewareFunc,
 	maybeAuthed echo.MiddlewareFunc,
-	jc ports.JWTConfig) *usersHandler {
+	jc ports.JWTConfig,
+) *usersHandler {
 	return &usersHandler{
 		repo,
 		authed,
@@ -262,7 +264,7 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 		return err
 	}
 
-	following := false
+	following := serialization.NotFollowing
 	if len(em) > 0 {
 		cu, err := r.repo.GetUserByEmail(em)
 		if err != nil {
@@ -272,17 +274,12 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 			return err
 		}
 
-		following = cu.IsFollowing(found.Email)
+		following = serialization.MaybeFollowing(cu)
 	}
 
-	return c.JSON(http.StatusOK, profile{
-		profileUser{
-			Username:  found.Username,
-			Bio:       found.Bio,
-			Image:     found.Image,
-			Following: following,
-		},
-	})
+	return c.JSON(
+		http.StatusOK,
+		serialization.UserToProfile(found, following))
 }
 
 func (r *usersHandler) follow(c echo.Context) error {
@@ -316,14 +313,9 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, profile{
-		profileUser{
-			Username:  fu.Username,
-			Bio:       fu.Bio,
-			Image:     fu.Image,
-			Following: true,
-		},
-	})
+	return c.JSON(
+		http.StatusOK,
+		serialization.UserToProfile(fu, serialization.Following))
 }
 
 func (r *usersHandler) unfollow(c echo.Context) error {
@@ -357,14 +349,9 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, profile{
-		profileUser{
-			Username:  fu.Username,
-			Bio:       fu.Bio,
-			Image:     fu.Image,
-			Following: false,
-		},
-	})
+	return c.JSON(
+		http.StatusOK,
+		serialization.UserToProfile(fu, serialization.NotFollowing))
 }
 
 func optional(s string) *string {
