@@ -1,6 +1,10 @@
 package serialization
 
-import "github.com/brycekbargar/realworld-backend/domain"
+import (
+	"time"
+
+	"github.com/brycekbargar/realworld-backend/domain"
+)
 
 type user struct {
 	User userUser `json:"user"`
@@ -65,6 +69,61 @@ func UserToProfile(
 			Bio:       u.Bio,
 			Image:     u.Image,
 			Following: f(u),
+		},
+	}
+}
+
+type author struct {
+	Username  string `json:"username"`
+	Bio       string `json:"bio"`
+	Image     string `json:"image"`
+	Following bool   `json:"following"`
+}
+
+type articleArticle struct {
+	Slug           string    `json:"slug"`
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
+	Body           string    `json:"body"`
+	TagList        []string  `json:"tagList"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	Favorited      bool      `json:"favorited"`
+	FavoritesCount int       `json:"favoritesCount"`
+	Author         author    `json:"author"`
+}
+
+type article struct {
+	Article articleArticle `json:"article"`
+}
+
+type list struct {
+	Articles      []articleArticle `json:"articles"`
+	ArticlesCount int              `json:"articlesCount"`
+}
+
+// AuthoredArticleToArticle converts a domain article into an output serialiable article for the current user.
+func AuthoredArticleToArticle(
+	a *domain.AuthoredArticle,
+	cu *domain.Fanboy,
+) interface{} {
+	return &article{
+		articleArticle{
+			Slug:           a.Slug,
+			Title:          a.Title,
+			Description:    a.Description,
+			Body:           a.Body,
+			TagList:        a.TagList,
+			CreatedAt:      a.CreatedAtUTC,
+			UpdatedAt:      a.UpdatedAtUTC,
+			FavoritesCount: a.FavoriteCount,
+			Favorited:      cu != nil && cu.Favors(a.Slug),
+			Author: author{
+				Username:  a.Email(),
+				Bio:       a.Bio(),
+				Image:     a.Image(),
+				Following: cu != nil && cu.IsFollowing(a.Email()),
+			},
 		},
 	}
 }
