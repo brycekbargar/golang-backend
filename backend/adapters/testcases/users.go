@@ -218,6 +218,23 @@ func Users_UpdateFanboyByEmail_Favorites(
 	assert.True(t, fu.Favors("callous-title"))
 	assert.False(t, fu.Favors("magnificient-title"))
 
+	fa, err := r.GetArticleBySlug("callous-title")
+	require.NoError(t, err)
+	assert.Equal(t, 1, fa.FavoriteCount)
+
+	_, err = r.CreateUser(testUser("careful"))
+	require.NoError(t, err)
+	r.UpdateFanboyByEmail(
+		"user@careful.com",
+		func(f *domain.Fanboy) (*domain.Fanboy, error) {
+			f.Favorite("callous-title")
+			return f, nil
+		})
+
+	fa, err = r.GetArticleBySlug("callous-title")
+	require.NoError(t, err)
+	assert.Equal(t, 2, fa.FavoriteCount)
+
 	r.UpdateArticleBySlug(
 		"callous-title",
 		func(a *domain.Article) (*domain.Article, error) {
