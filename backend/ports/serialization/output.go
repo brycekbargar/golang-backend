@@ -2,13 +2,10 @@ package serialization
 
 import "github.com/brycekbargar/realworld-backend/domain"
 
-// User is the json wrapper for a single user.
-type User struct {
-	User UserUser `json:"user"`
+type user struct {
+	User userUser `json:"user"`
 }
-
-// UserUser is the contract for user operations.
-type UserUser struct {
+type userUser struct {
 	Email    string  `json:"email"`
 	Token    string  `json:"token"`
 	Username string  `json:"username"`
@@ -20,9 +17,9 @@ type UserUser struct {
 func UserToUser(
 	u *domain.User,
 	t string,
-) *User {
-	return &User{
-		UserUser{
+) interface{} {
+	return &user{
+		userUser{
 			Email:    u.Email,
 			Token:    t,
 			Username: u.Username,
@@ -36,21 +33,23 @@ func optional(s string) *string {
 	return &s
 }
 
-// Profile is the json wrapper for a single profile.
-type Profile struct {
-	Profile ProfileUser `json:"profile"`
+type profile struct {
+	Profile profileUser `json:"profile"`
 }
-
-// ProfileUser is the contract for profile operations.
-type ProfileUser struct {
+type profileUser struct {
 	Username  string `json:"username"`
 	Bio       string `json:"bio"`
 	Image     string `json:"image"`
 	Following bool   `json:"following"`
 }
 
-func Following(*domain.User) bool    { return true }
+// Following is a convenience func for when the user is following a profile.
+func Following(*domain.User) bool { return true }
+
+// NotFollowing is a convenience func for when the user is not following a profile.
 func NotFollowing(*domain.User) bool { return false }
+
+// MaybeFollowing is a convenience func for checking if the  user is following a profile.
 func MaybeFollowing(f *domain.Fanboy) func(u *domain.User) bool {
 	return func(u *domain.User) bool { return f.IsFollowing(u.Email) }
 }
@@ -59,9 +58,9 @@ func MaybeFollowing(f *domain.Fanboy) func(u *domain.User) bool {
 func UserToProfile(
 	u *domain.User,
 	f func(*domain.User) bool,
-) *Profile {
-	return &Profile{
-		ProfileUser{
+) interface{} {
+	return &profile{
+		profileUser{
 			Username:  u.Username,
 			Bio:       u.Bio,
 			Image:     u.Image,
