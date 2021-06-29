@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// NewInstance creates a new instance of the postgres store with the repository interface implementations. Panics on error.
-func NewInstance(dsn string) domain.Repository {
+// MustNewInstance creates a new instance of the postgres store with the repository interface implementations. Panics on error.
+func MustNewInstance(dsn string) domain.Repository {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -34,7 +34,7 @@ func NewInstance(dsn string) domain.Repository {
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	return implementation{
+	return &implementation{
 		db,
 	}
 }
