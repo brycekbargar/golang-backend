@@ -1,9 +1,47 @@
 package postgres
 
 import (
+	"time"
+
+	"github.com/brycekbargar/realworld-backend/domain"
 	"gorm.io/datatypes"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+// NewInstance creates a new instance of the postgres store with the repository interface implementations. Panics on error.
+func NewInstance(dsn string) domain.Repository {
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
+
+	err = db.AutoMigrate(
+		&User{},
+		&Password{},
+		&Article{},
+		&Comment{},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		panic(err)
+	}
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	return implementation{
+		db,
+	}
+}
+
+type implementation struct {
+	db *gorm.DB
+}
 
 type User struct {
 	gorm.Model
