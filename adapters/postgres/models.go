@@ -45,19 +45,19 @@ type implementation struct {
 
 type User struct {
 	gorm.Model
-	Email      string `gorm:"uniqueIndex"`
-	Username   string `gorm:"uniqueIndex"`
-	Bio        string
-	Image      string
-	PasswordID uint
-	Password   Password
-	Following  []User
-	Favorites  []Article
+	Email     string `gorm:"uniqueIndex"`
+	Username  string `gorm:"uniqueIndex"`
+	Bio       string
+	Image     string
+	Password  Password
+	Following []*User    `gorm:"many2many:user_following"`
+	Favorites []*Article `gorm:"many2many:user_favorites"`
 }
 
 type Password struct {
-	ID    uint
-	Value []byte
+	ID     uint
+	UserID uint
+	Value  []byte
 }
 
 type Article struct {
@@ -67,12 +67,13 @@ type Article struct {
 	Description string
 	Body        string
 	TagList     datatypes.JSON
-	Author      User
-	Comments    []Comment
+	Author      User `gorm:"foreignkey:ID"`
+	Comments    []*Comment
 }
 
 type Comment struct {
 	gorm.Model
-	Body   string
-	Author User
+	ArticleID uint
+	Body      string
+	Author    User `gorm:"foreignkey:ID"`
 }

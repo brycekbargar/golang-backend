@@ -1,13 +1,52 @@
 package postgres_test
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/brycekbargar/realworld-backend/adapters/postgres"
 	"github.com/brycekbargar/realworld-backend/adapters/testcases"
+	"github.com/brycekbargar/realworld-backend/domain"
+	"github.com/jackc/pgx/v4"
 )
 
-var uut = postgres.MustNewInstance("")
+var uut domain.Repository
+
+func TestMain(m *testing.M) {
+	connString := "host=127.0.0.1 user=postgres password=test"
+	testDB := fmt.Sprintf("realworld_backend_test_%v", time.Now().UnixNano())
+	func() {
+		db, err := pgx.Connect(context.Background(), connString)
+		if err != nil {
+			panic(err)
+		}
+
+		defer db.Close(context.Background())
+		_, err = db.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", testDB))
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	defer func() {
+		db, err := pgx.Connect(context.Background(), connString)
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close(context.Background())
+
+		_, err = db.Exec(context.Background(), fmt.Sprintf("DROP DATABASE %s", testDB))
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	uut = postgres.MustNewInstance(fmt.Sprintf("%s dbname=%s", connString, testDB))
+	os.Exit(m.Run())
+}
 
 func Test_Users(t *testing.T) {
 	t.Parallel()
