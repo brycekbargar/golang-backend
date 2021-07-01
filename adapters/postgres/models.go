@@ -45,12 +45,12 @@ type implementation struct {
 
 type User struct {
 	gorm.Model
-	Email     string `gorm:"uniqueIndex"`
-	Username  string `gorm:"uniqueIndex"`
+	Email     string `gorm:"index:,unique"`
+	Username  string `gorm:"index:,unique"`
 	Bio       string
 	Image     string
 	Password  Password
-	Following []*User    `gorm:"many2many:user_following"`
+	Following []*User    `gorm:"many2many:user_following;foreignKey:Email"`
 	Favorites []*Article `gorm:"many2many:user_favorites"`
 }
 

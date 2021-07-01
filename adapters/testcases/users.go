@@ -45,7 +45,7 @@ func Users_CreateUser(
 	assert.Equal(t, "http://noisy.com/profile.png", fu.Image)
 	hp, err := fu.HasPassword("!4321tseT")
 	require.NoError(t, err)
-	assert.True(t, hp)
+	assert.True(t, hp, "because the password changed")
 }
 
 func Users_GetUserByEmail(
