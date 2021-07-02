@@ -148,7 +148,21 @@ func (r *implementation) UpdateCommentsBySlug(string, func(*domain.CommentedArti
 }
 
 // DeleteArticle deletes the article if it exists.
-func (r *implementation) DeleteArticle(*domain.Article) error {
+func (r *implementation) DeleteArticle(a *domain.Article) error {
+	if a == nil {
+		return nil
+	}
+
+	found, err := r.getArticleBySlug(a.Slug)
+	if err != nil {
+		return err
+	}
+
+	res := r.db.Delete(&found)
+	if res.Error != nil {
+		return res.Error
+	}
+
 	return nil
 }
 
