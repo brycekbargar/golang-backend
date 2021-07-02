@@ -50,8 +50,21 @@ type User struct {
 	Bio       string
 	Image     string
 	Password  Password
-	Following []*User    `gorm:"many2many:user_following;foreignKey:Email"`
+	Following []*User    `gorm:"many2many:user_following"`
 	Favorites []*Article `gorm:"many2many:user_favorites"`
+}
+
+func (u User) GetEmail() string {
+	return u.Email
+}
+func (u User) GetUsername() string {
+	return u.Username
+}
+func (u User) GetBio() string {
+	return u.Bio
+}
+func (u User) GetImage() string {
+	return u.Image
 }
 
 type Password struct {
@@ -62,7 +75,7 @@ type Password struct {
 
 type Article struct {
 	gorm.Model
-	Slug        string `gorm:"uniqueIndex"`
+	Slug        string `gorm:"index:,unique"`
 	Title       string
 	Description string
 	Body        string

@@ -79,8 +79,12 @@ func (r *implementation) getUserByEmail(em string) (*User, error) {
 }
 
 // GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
-func (r *implementation) GetAuthorByEmail(string) domain.Author {
-	return nil
+func (r *implementation) GetAuthorByEmail(em string) domain.Author {
+	auth, err := r.getUserByEmail(em)
+	if err != nil {
+		return nil
+	}
+	return auth
 }
 
 // GetUserByUsername finds a single user based on their username.

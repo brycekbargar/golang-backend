@@ -1,10 +1,49 @@
 package postgres
 
-import "github.com/brycekbargar/realworld-backend/domain"
+import (
+	"encoding/json"
+	"errors"
+
+	"github.com/brycekbargar/realworld-backend/domain"
+	"github.com/jackc/pgconn"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
 
 // CreateArticle creates a new article.
-func (r *implementation) CreateArticle(*domain.Article) (*domain.AuthoredArticle, error) {
-	return nil, nil
+func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArticle, error) {
+	auth, err := r.getUserByEmail(a.AuthorEmail)
+	if err == domain.ErrUserNotFound {
+		return nil, domain.ErrNoAuthor
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := json.Marshal(a.TagList)
+	if err != nil {
+		return nil, err
+	}
+
+	res := r.db.Create(&Article{
+		Slug:        a.Slug,
+		Title:       a.Title,
+		Description: a.Description,
+		Body:        a.Body,
+		TagList:     datatypes.JSON(tags),
+		Author:      *auth,
+	})
+
+	var pgErr *pgconn.PgError
+	if errors.As(res.Error, &pgErr) && pgErr.Code == "23505" {
+		return nil, domain.ErrDuplicateArticle
+	}
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return r.GetArticleBySlug(a.Slug)
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
@@ -13,8 +52,47 @@ func (r *implementation) LatestArticlesByCriteria(domain.ListCriteria) ([]*domai
 }
 
 // GetArticleBySlug gets a single article with the given slug.
-func (r *implementation) GetArticleBySlug(string) (*domain.AuthoredArticle, error) {
-	return nil, nil
+func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, error) {
+	found, err := r.getArticleBySlug(s)
+	if err != nil {
+		return nil, err
+	}
+
+	var tags []string
+	err = json.Unmarshal(found.TagList, &tags)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.AuthoredArticle{
+		Article: domain.Article{
+			Slug:         found.Slug,
+			Title:        found.Title,
+			Description:  found.Description,
+			Body:         found.Body,
+			TagList:      tags,
+			CreatedAtUTC: found.CreatedAt,
+			UpdatedAtUTC: found.UpdatedAt,
+			AuthorEmail:  found.Author.GetEmail(),
+		},
+		Author: found.Author,
+	}, nil
+}
+
+func (r *implementation) getArticleBySlug(s string) (*Article, error) {
+	var found Article
+	res := r.db.
+		Preload(clause.Associations).
+		First(&found, "slug = ?", s)
+
+	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		return nil, domain.ErrArticleNotFound
+	}
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return &found, nil
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
@@ -24,8 +102,43 @@ func (r *implementation) GetCommentsBySlug(string) (*domain.CommentedArticle, er
 
 // UpdateArticleBySlug finds a single article based on its slug
 // then applies the provide mutations.
-func (r *implementation) UpdateArticleBySlug(string, func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
-	return nil, nil
+func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
+	a, err := r.GetArticleBySlug(s)
+	if err != nil {
+		return nil, err
+	}
+
+	article, err := update(&a.Article)
+	if err != nil {
+		return nil, err
+	}
+
+	found, err := r.getArticleBySlug(s)
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := json.Marshal(article.TagList)
+	if err != nil {
+		return nil, err
+	}
+
+	found.Slug = article.Slug
+	found.Title = article.Title
+	found.Description = article.Description
+	found.Body = article.Body
+	found.TagList = datatypes.JSON(tags)
+	res := r.db.Save(found)
+
+	var pgErr *pgconn.PgError
+	if errors.As(res.Error, &pgErr) && pgErr.Code == "23505" {
+		return nil, domain.ErrDuplicateArticle
+	}
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return r.GetArticleBySlug(article.Slug)
 }
 
 // UpdateCommentsBySlug finds a single article based on its slug

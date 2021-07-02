@@ -16,7 +16,7 @@ import (
 var uut domain.Repository
 
 func TestMain(m *testing.M) {
-	connString := "host=127.0.0.1 user=postgres password=test"
+	connString := "host=127.0.0.1 user=postgres password=test timezone=universal"
 	testDB := fmt.Sprintf("realworld_backend_test_%v", time.Now().UnixNano())
 	func() {
 		db, err := pgx.Connect(context.Background(), connString)
@@ -78,15 +78,15 @@ func Test_Users(t *testing.T) {
 func Test_Articles(t *testing.T) {
 	t.Parallel()
 
+	t.Run("Create and Update Article", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_CreateArticle(t, uut)
+	})
+	t.Run("Get and Update Article", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_GetArticleBySlug(t, uut)
+	})
 	/*
-		t.Run("Create and Update Article", func(t *testing.T) {
-			t.Parallel()
-			testcases.Articles_CreateArticle(t, uut)
-		})
-		t.Run("Get and Update Article", func(t *testing.T) {
-			t.Parallel()
-			testcases.Articles_GetArticleBySlug(t, uut)
-		})
 		t.Run("Delete Article", func(t *testing.T) {
 			t.Parallel()
 			testcases.Articles_DeleteArticle(t, uut)
