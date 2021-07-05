@@ -162,38 +162,61 @@ SELECT u.email, u.username, u.bio, u.image, p.hash as password
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
 func (r *implementation) UpdateUserByEmail(em string, update func(*domain.User) (*domain.User, error)) (*domain.User, error) {
-	f, err := r.GetUserByEmail(em)
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := update(&f.User)
+	u, err := getUserByEmail(em, tx)
 	if err != nil {
 		return nil, err
 	}
 
-	found, err := r.getUserByEmail(em)
+	u, err = update(u)
 	if err != nil {
 		return nil, err
 	}
 
-	found.Email = user.Email
-	found.Username = user.Username
-	found.Bio = user.Bio
-	found.Image = user.Image
-	found.Password = Password{Value: user.Password}
-	res := r.db.Save(found)
+	res, err := tx.ExecContext(ctx, `
+UPDATE users 
+	SET email = $2, username = $3, bio = $4, image = $5
+	WHERE email = $1
+	RETURNING id`,
+		em, u.Email, u.Username, u.Bio, u.Image)
 
-	var pgErr *pgconn.PgError
-	if errors.As(res.Error, &pgErr) && pgErr.Code == "23505" {
-		return nil, domain.ErrDuplicateUser
-	}
-	if res.Error != nil {
-		return nil, res.Error
+	if err != nil {
+		tx.Rollback()
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return nil, domain.ErrDuplicateUser
+		}
+
+		return nil, err
 	}
 
-	f, err = r.GetUserByEmail(user.Email)
-	return &f.User, err
+	id, err := res.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// TODO: Use salts and pg stuff instead of the bcrypt server side implementation
+	_, err = tx.ExecContext(ctx, `
+UPDATE user_passwords
+	SET hash = $2
+	WHERE id = $1
+`, id, u.Password)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return getUserByEmail(u.Email, r.db)
 }
 
 // UpdateFanboyByEmail finds a single user based on their email address,
