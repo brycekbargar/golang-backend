@@ -12,7 +12,7 @@ import (
 
 // CreateUser creates a new user.
 func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
-	res := r.db.Create(&User{
+	res := r.db.Omit("id").Create(&User{
 		Email:    u.Email,
 		Username: u.Username,
 		Bio:      u.Bio,

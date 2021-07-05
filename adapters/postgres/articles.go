@@ -3,6 +3,7 @@ package postgres
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/jackc/pgconn"
@@ -26,7 +27,7 @@ func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArtic
 		return nil, err
 	}
 
-	res := r.db.Create(&Article{
+	res := r.db.Omit("id").Create(&Article{
 		Slug:        a.Slug,
 		Title:       a.Title,
 		Description: a.Description,
@@ -168,5 +169,29 @@ func (r *implementation) DeleteArticle(a *domain.Article) error {
 
 // DistinctTags returns a distinct list of tags on all articles
 func (r *implementation) DistinctTags() ([]string, error) {
-	return nil, nil
+	var articles []*Article
+	res := r.db.Select("tag_list").Find(&articles)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	tm := make(map[string]interface{})
+	for _, a := range articles {
+		var tags []string
+		err := json.Unmarshal(a.TagList, &tags)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, t := range tags {
+			tm[strings.ToLower(t)] = nil
+		}
+	}
+
+	tags := make([]string, 0, len(tm))
+	for t := range tm {
+		tags = append(tags, t)
+	}
+
+	return tags, nil
 }

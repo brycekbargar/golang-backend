@@ -68,7 +68,7 @@ func (u User) GetImage() string {
 }
 
 type Password struct {
-	ID     uint
+	ID     uint `gorm:"primarykey"`
 	UserID uint
 	Value  []byte
 }
