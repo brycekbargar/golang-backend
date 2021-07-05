@@ -44,7 +44,9 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	uut = postgres.MustNewInstance(fmt.Sprintf("%s dbname=%s", connString, testDB))
+	uut = postgres.
+		MustNewInstance(fmt.Sprintf("%s dbname=%s", connString, testDB)).
+		MustMigrate()
 	os.Exit(m.Run())
 }
 

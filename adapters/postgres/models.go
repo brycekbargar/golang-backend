@@ -1,92 +1,59 @@
 package postgres
 
 import (
-	"time"
+	"context"
+	"database/sql"
 
 	"github.com/brycekbargar/realworld-backend/domain"
-	"gorm.io/datatypes"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+
+	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jmoiron/sqlx"
 )
 
 // MustNewInstance creates a new instance of the postgres store with the repository interface implementations. Panics on error.
-func MustNewInstance(dsn string) domain.Repository {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
-
-	err = db.AutoMigrate(
-		&User{},
-		&Password{},
-		&Article{},
-		&Comment{},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		panic(err)
-	}
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
-
+func MustNewInstance(dsn string) Migrateable {
 	return &implementation{
-		db,
+		sqlx.MustConnect("postgres", dsn),
 	}
+}
+
+type Migrateable interface {
+	MustMigrate() domain.Repository
+}
+
+func (r *implementation) MustMigrate() domain.Repository {
+	ctx := context.TODO()
+	tx := r.db.MustBeginTx(ctx, nil)
+
+	// TODO: Use an actual migration framework
+	err := tx.QueryRowContext(
+		context.TODO(),
+		"SELECT * FROM schema_version").Scan()
+	if err == sql.ErrNoRows {
+		_, err = tx.ExecContext(ctx, `
+CREATE TABLE schema_version (
+	version varchar(40) NOT NULL,
+	applied timestamp without time zone default (now() at time zone 'utc')
+)
+INSERT INTO schema_version VALUES 
+	('0.0.1.0')
+
+-- TODO: Migrate the thing
+`)
+		if err != nil {
+			tx.Rollback()
+			panic(err)
+		}
+	}
+
+	tx.Commit()
+	return r
 }
 
 type implementation struct {
-	db *gorm.DB
+	db *sqlx.DB
 }
 
-type User struct {
-	gorm.Model
-	Email     string `gorm:"index:,unique"`
-	Username  string `gorm:"index:,unique"`
-	Bio       string
-	Image     string
-	Password  Password
-	Following []*User    `gorm:"many2many:user_following"`
-	Favorites []*Article `gorm:"many2many:user_favorites"`
-}
-
-func (u User) GetEmail() string {
-	return u.Email
-}
-func (u User) GetUsername() string {
-	return u.Username
-}
-func (u User) GetBio() string {
-	return u.Bio
-}
-func (u User) GetImage() string {
-	return u.Image
-}
-
-type Password struct {
-	ID     uint `gorm:"primarykey"`
-	UserID uint
-	Value  []byte
-}
-
-type Article struct {
-	gorm.Model
-	Slug        string `gorm:"index:,unique"`
-	Title       string
-	Description string
-	Body        string
-	TagList     datatypes.JSON
-	Author      User `gorm:"foreignkey:ID"`
-	Comments    []*Comment
-}
-
-type Comment struct {
-	gorm.Model
-	ArticleID uint
-	Body      string
-	Author    User `gorm:"foreignkey:ID"`
+type queryer interface {
+	GetContext(context.Context, interface{}, string, ...interface{}) error
 }

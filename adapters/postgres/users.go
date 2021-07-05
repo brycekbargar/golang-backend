@@ -1,31 +1,60 @@
 package postgres
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"strings"
 
 	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/jackc/pgconn"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/jackc/pgerrcode"
 )
+
+var ctx = context.TODO()
 
 // CreateUser creates a new user.
 func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
-	res := r.db.Omit("id").Create(&User{
-		Email:    u.Email,
-		Username: u.Username,
-		Bio:      u.Bio,
-		Image:    u.Image,
-		Password: Password{Value: u.Password},
-	})
-
-	var pgErr *pgconn.PgError
-	if errors.As(res.Error, &pgErr) && pgErr.Code == "23505" {
-		return nil, domain.ErrDuplicateUser
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
-	if res.Error != nil {
-		return nil, res.Error
+
+	res, err := tx.ExecContext(ctx, `
+INSERT INTO users (email, username, bio, image) 
+	VALUES ($1, $2, $3, $4)
+	RETURNING id`,
+		u.Email, u.Username, u.Bio, u.Image)
+
+	if err != nil {
+		tx.Rollback()
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return nil, domain.ErrDuplicateUser
+		}
+
+		return nil, err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// TODO: Use salts and pg stuff instead of the bcrypt server side implementation
+	res, err = tx.ExecContext(ctx, `
+INSERT INTO user_passwords (id, hash) 
+	VALUES ($1, $2)
+`, id, u.Password)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
 	}
 
 	f, err := r.GetUserByEmail(u.Email)
@@ -34,53 +63,78 @@ func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
 
 // GetUserByEmail finds a single user based on their email address.
 func (r *implementation) GetUserByEmail(em string) (*domain.Fanboy, error) {
-	found, err := r.getUserByEmail(em)
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+
+	found, err := getUserByEmail(em, tx)
 	if err != nil {
 		return nil, err
 	}
 
-	follows := make(map[string]interface{}, len(found.Following))
-	for _, u := range found.Following {
-		follows[strings.ToLower(u.Email)] = nil
+	var follows []string
+	err = tx.SelectContext(ctx, &follows, `
+SELECT f.email
+	FROM users u, followed_users fu, users f
+	WHERE u.email = $1
+	AND u.id = fu.follower_id
+	AND f.id = fu.followed_id
+`)
+	if err != nil {
+		return nil, err
 	}
 
-	favorites := make(map[string]interface{}, len(found.Favorites))
-	for _, a := range found.Favorites {
-		favorites[strings.ToLower(a.Slug)] = nil
+	following := make(map[string]interface{}, len(follows))
+	for _, u := range follows {
+		following[strings.ToLower(u)] = nil
+	}
+
+	var favors []string
+	err = tx.SelectContext(ctx, &favors, `
+SELECT a.slug
+	FROM users u, favorited_articles fa, articles a
+	WHERE u.email = $1
+	AND u.id = fa.user_id
+	AND a.id = fa.article_id
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	favorites := make(map[string]interface{}, len(favors))
+	for _, a := range favors {
+		favorites[strings.ToLower(a)] = nil
 	}
 
 	return &domain.Fanboy{
-		User: domain.User{
-			Email:    found.Email,
-			Username: found.Username,
-			Bio:      found.Bio,
-			Image:    found.Image,
-			Password: found.Password.Value,
-		},
-		Following: follows,
+		User:      *found,
+		Following: following,
 		Favorites: favorites,
 	}, nil
 }
 
-func (r *implementation) getUserByEmail(em string) (*User, error) {
-	var found User
-	res := r.db.
-		Preload(clause.Associations).
-		First(&found, "email = ?", em)
-
-	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+func getUserByEmail(em string, tx queryer) (*domain.User, error) {
+	var found *domain.User
+	err := tx.GetContext(ctx, &found, `
+SELECT u.email, u.username, u.bio, u.image, p.hash as password
+	FROM users u, user_passwords p
+	WHERE u.email = $1 
+	AND u.id = p.id`, em)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrUserNotFound
 	}
-	if res.Error != nil {
-		return nil, res.Error
+	if err != nil {
+		return nil, err
 	}
 
-	return &found, nil
+	return found, nil
 }
 
 // GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
 func (r *implementation) GetAuthorByEmail(em string) domain.Author {
-	auth, err := r.getUserByEmail(em)
+	auth, err := getUserByEmail(em, r.db)
 	if err != nil {
 		return nil
 	}
@@ -89,25 +143,20 @@ func (r *implementation) GetAuthorByEmail(em string) domain.Author {
 
 // GetUserByUsername finds a single user based on their username.
 func (r *implementation) GetUserByUsername(un string) (*domain.User, error) {
-	var found User
-	res := r.db.
-		Preload(clause.Associations).
-		First(&found, "username = ?", un)
-
-	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+	var found *domain.User
+	err := r.db.GetContext(ctx, &found, `
+SELECT u.email, u.username, u.bio, u.image, p.hash as password
+	FROM users u, user_passwords p
+	WHERE u.email = $1 
+	AND u.id = p.id`, un)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrUserNotFound
 	}
-	if res.Error != nil {
-		return nil, res.Error
+	if err != nil {
+		return nil, err
 	}
 
-	return &domain.User{
-		Email:    found.Email,
-		Username: found.Username,
-		Bio:      found.Bio,
-		Image:    found.Image,
-		Password: found.Password.Value,
-	}, nil
+	return found, nil
 }
 
 // UpdateUserByEmail finds a single user based on their email address,
