@@ -115,9 +115,9 @@ SELECT a.slug
 	}, nil
 }
 
-func getUserByEmail(em string, tx queryer) (*domain.User, error) {
+func getUserByEmail(em string, q queryer) (*domain.User, error) {
 	var found *domain.User
-	err := tx.GetContext(ctx, &found, `
+	err := q.GetContext(ctx, &found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
 	FROM users u, user_passwords p
 	WHERE u.email = $1 
@@ -169,11 +169,13 @@ func (r *implementation) UpdateUserByEmail(em string, update func(*domain.User) 
 
 	u, err := getUserByEmail(em, tx)
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
 	u, err = update(u)
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
