@@ -1,28 +1,29 @@
 package postgres
 
 import (
-	"database/sql"
 	"errors"
 
 	"github.com/brycekbargar/realworld-backend/domain"
+	"github.com/georgysavva/scany/pgxscan"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v4"
 )
 
 // CreateArticle creates a new article.
 func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArticle, error) {
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := tx.ExecContext(ctx, `
+	res, err := tx.Exec(ctx, `
 INSERT INTO articles (slug, title, description, body, author_id)
 	(SELECT $2, $3, $4, $5, u.id
 	FROM users u WHERE u.email = $1)`,
 		a.AuthorEmail, a.Slug, a.Title, a.Description, a.Body)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -34,12 +35,12 @@ INSERT INTO articles (slug, title, description, body, author_id)
 
 		return nil, err
 	}
-	if rows, err := res.RowsAffected(); rows != 1 || err != nil {
-		tx.Rollback()
+	if res.RowsAffected() != 1 {
+		tx.Rollback(ctx)
 		return nil, domain.ErrNoAuthor
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
@@ -53,11 +54,11 @@ func (r *implementation) LatestArticlesByCriteria(domain.ListCriteria) ([]*domai
 
 // GetArticleBySlug gets a single article with the given slug.
 func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, error) {
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Commit()
+	defer tx.Commit(ctx)
 
 	found, err := getArticleBySlug(s, tx)
 	if err != nil {
@@ -75,14 +76,14 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 	}, nil
 }
 
-func getArticleBySlug(s string, q queryer) (*domain.Article, error) {
+func getArticleBySlug(s string, q pgxscan.Querier) (*domain.Article, error) {
 	found := new(domain.Article)
-	err := q.GetContext(ctx, found, `
-SELECT a.slug, a.title, a.description, a.body, a.created AS createdatutc, a.updated AS updatedatutc, u.email AS authoremail
+	err := pgxscan.Get(ctx, q, found, `
+SELECT a.slug, a.title, a.description, a.body, a.created AS created_at_utc, a.updated AS updated_at_utc, u.email AS author_email
 	FROM articles a, users u 
 	WHERE a.slug = $1
 	AND a.author_id = u.id`, s)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrArticleNotFound
 	}
 	if err != nil {
@@ -100,24 +101,24 @@ func (r *implementation) GetCommentsBySlug(string) (*domain.CommentedArticle, er
 // UpdateArticleBySlug finds a single article based on its slug
 // then applies the provide mutations.
 func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	a, err := getArticleBySlug(s, tx)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return nil, err
 	}
 
 	a, err = update(a)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return nil, err
 	}
 
-	res, err := tx.ExecContext(ctx, `
+	res, err := tx.Exec(ctx, `
 UPDATE articles
 	SET slug = $3, title = $4, description = $5, body = $6, updated = now() at time zone 'utc', author_id = u.id
  	FROM users u
@@ -126,7 +127,7 @@ UPDATE articles
 	`, s, a.AuthorEmail, a.Slug, a.Title, a.Description, a.Body)
 
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -139,12 +140,12 @@ UPDATE articles
 		return nil, err
 	}
 
-	if rows, err := res.RowsAffected(); rows != 1 || err != nil {
-		tx.Rollback()
+	if res.RowsAffected() != 1 {
+		tx.Rollback(ctx)
 		return nil, domain.ErrNoAuthor
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
@@ -163,24 +164,24 @@ func (r *implementation) DeleteArticle(a *domain.Article) error {
 		return nil
 	}
 
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return err
 	}
 
-	res, err := tx.ExecContext(ctx, `
+	res, err := tx.Exec(ctx, `
 DELETE FROM articles a
 	WHERE a.slug = $1`, a.Slug)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return err
 	}
-	if rows, err := res.RowsAffected(); rows != 1 || err != nil {
-		tx.Rollback()
+	if res.RowsAffected() != 1 {
+		tx.Rollback(ctx)
 		return domain.ErrArticleNotFound
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return err
 	}
 

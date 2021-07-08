@@ -5,11 +5,11 @@ go 1.15
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/georgysavva/scany v0.2.9
 	github.com/gosimple/slug v1.9.0
 	github.com/jackc/pgconn v1.8.1
 	github.com/jackc/pgerrcode v0.0.0-20201024163028-a0d42d470451
 	github.com/jackc/pgx/v4 v4.11.0
-	github.com/jmoiron/sqlx v1.3.4
 	github.com/labstack/echo/v4 v4.3.0
 	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.13 // indirect

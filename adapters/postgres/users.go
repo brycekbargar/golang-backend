@@ -2,33 +2,34 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 
 	"github.com/brycekbargar/realworld-backend/domain"
+	"github.com/georgysavva/scany/pgxscan"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v4"
 )
 
 var ctx = context.TODO()
 
 // CreateUser creates a new user.
 func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	var id int
-	err = tx.QueryRowContext(ctx, `
+	err = tx.QueryRow(ctx, `
 INSERT INTO users (email, username, bio, image) 
 	VALUES ($1, $2, $3, $4)
 	RETURNING id`,
 		u.Email, u.Username, u.Bio, u.Image).Scan(&id)
 
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -39,16 +40,16 @@ INSERT INTO users (email, username, bio, image)
 	}
 
 	// TODO: Use salts and pg stuff instead of the bcrypt server side implementation
-	_, err = tx.ExecContext(ctx, `
+	_, err = tx.Exec(ctx, `
 INSERT INTO user_passwords (id, hash) 
 	VALUES ($1, $2)
 `, id, u.Password)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return nil, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
@@ -57,11 +58,11 @@ INSERT INTO user_passwords (id, hash)
 
 // GetUserByEmail finds a single user based on their email address.
 func (r *implementation) GetUserByEmail(em string) (*domain.Fanboy, error) {
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Commit()
+	defer tx.Commit(ctx)
 
 	found, err := getUserByEmail(em, tx)
 	if err != nil {
@@ -69,7 +70,7 @@ func (r *implementation) GetUserByEmail(em string) (*domain.Fanboy, error) {
 	}
 
 	var follows []string
-	err = tx.SelectContext(ctx, &follows, `
+	err = pgxscan.Select(ctx, tx, &follows, `
 SELECT f.email
 	FROM users u, followed_users fu, users f
 	WHERE u.email = $1
@@ -86,7 +87,7 @@ SELECT f.email
 	}
 
 	var favors []string
-	err = tx.SelectContext(ctx, &favors, `
+	err = pgxscan.Select(ctx, tx, &favors, `
 SELECT a.slug
 	FROM users u, favorited_articles fa, articles a
 	WHERE u.email = $1
@@ -109,14 +110,14 @@ SELECT a.slug
 	}, nil
 }
 
-func getUserByEmail(em string, q queryer) (*domain.User, error) {
+func getUserByEmail(em string, q pgxscan.Querier) (*domain.User, error) {
 	found := new(domain.User)
-	err := q.GetContext(ctx, found, `
+	err := pgxscan.Get(ctx, q, found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
 	FROM users u, user_passwords p
 	WHERE u.email = $1 
 	AND u.id = p.id`, em)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrUserNotFound
 	}
 	if err != nil {
@@ -138,12 +139,12 @@ func (r *implementation) GetAuthorByEmail(em string) domain.Author {
 // GetUserByUsername finds a single user based on their username.
 func (r *implementation) GetUserByUsername(un string) (*domain.User, error) {
 	found := new(domain.User)
-	err := r.db.GetContext(ctx, found, `
+	err := pgxscan.Get(ctx, r.db, found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
 	FROM users u, user_passwords p
 	WHERE u.username = $1 
 	AND u.id = p.id`, un)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrUserNotFound
 	}
 	if err != nil {
@@ -156,25 +157,25 @@ SELECT u.email, u.username, u.bio, u.image, p.hash as password
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
 func (r *implementation) UpdateUserByEmail(em string, update func(*domain.User) (*domain.User, error)) (*domain.User, error) {
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	u, err := getUserByEmail(em, tx)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return nil, err
 	}
 
 	u, err = update(u)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return nil, err
 	}
 
 	var id int
-	err = tx.QueryRowContext(ctx, `
+	err = tx.QueryRow(ctx, `
 UPDATE users 
 	SET email = $2, username = $3, bio = $4, image = $5
 	WHERE email = $1
@@ -182,7 +183,7 @@ UPDATE users
 		em, u.Email, u.Username, u.Bio, u.Image).Scan(&id)
 
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -193,17 +194,17 @@ UPDATE users
 	}
 
 	// TODO: Use salts and pg stuff instead of the bcrypt server side implementation
-	_, err = tx.ExecContext(ctx, `
+	_, err = tx.Exec(ctx, `
 UPDATE user_passwords
 	SET hash = $2
 	WHERE id = $1
 `, id, u.Password)
 	if err != nil {
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return nil, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 

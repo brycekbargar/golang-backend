@@ -2,19 +2,24 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/brycekbargar/realworld-backend/domain"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/jmoiron/sqlx"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // MustNewInstance creates a new instance of the postgres store with the repository interface implementations. Panics on error.
 func MustNewInstance(dsn string) Migrateable {
-	return &implementation{
-		sqlx.MustConnect("pgx", dsn),
+	pool, err := pgxpool.Connect(ctx, dsn)
+	if err != nil {
+		panic(err)
 	}
+	if err = pool.Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	return &implementation{pool}
 }
 
 type Migrateable interface {
@@ -22,22 +27,31 @@ type Migrateable interface {
 }
 
 func (r *implementation) MustMigrate() domain.Repository {
-	ctx := context.TODO()
-	tx := r.db.MustBeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		panic(err)
+	}
 
 	// TODO: Use an actual migration framework
-	tx.MustExecContext(ctx, `
+	_, err = tx.Exec(ctx, `
 CREATE TABLE IF NOT EXISTS schema_version (
 	version varchar(40) NOT NULL,
 	applied timestamp without time zone default (now() at time zone 'utc')
 )`)
+	if err != nil {
+		panic(err)
+	}
 
-	err := tx.QueryRowContext(
-		context.TODO(),
-		"SELECT * FROM schema_version").Scan()
+	rows, err := tx.Query(
+		ctx,
+		"SELECT * FROM schema_version")
+	defer rows.Close()
+	if err != nil {
+		panic(err)
+	}
 
-	if err == sql.ErrNoRows {
-		tx.MustExecContext(ctx, `
+	if !rows.Next() {
+		_, err = tx.Exec(ctx, `
 INSERT INTO schema_version VALUES 
 	('0.0.1.0');
 
@@ -76,13 +90,16 @@ CREATE TABLE favorited_articles (
 	UNIQUE (user_id, article_id)
 );`)
 	}
+	if err != nil {
+		panic(err)
+	}
 
-	tx.Commit()
+	tx.Commit(ctx)
 	return r
 }
 
 type implementation struct {
-	db *sqlx.DB
+	db *pgxpool.Pool
 }
 
 type queryer interface {
