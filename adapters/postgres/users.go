@@ -20,11 +20,12 @@ func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
 		return nil, err
 	}
 
-	res, err := tx.ExecContext(ctx, `
+	var id int
+	err = tx.QueryRowContext(ctx, `
 INSERT INTO users (email, username, bio, image) 
 	VALUES ($1, $2, $3, $4)
 	RETURNING id`,
-		u.Email, u.Username, u.Bio, u.Image)
+		u.Email, u.Username, u.Bio, u.Image).Scan(&id)
 
 	if err != nil {
 		tx.Rollback()
@@ -37,14 +38,8 @@ INSERT INTO users (email, username, bio, image)
 		return nil, err
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
 	// TODO: Use salts and pg stuff instead of the bcrypt server side implementation
-	res, err = tx.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
 INSERT INTO user_passwords (id, hash) 
 	VALUES ($1, $2)
 `, id, u.Password)
@@ -57,8 +52,7 @@ INSERT INTO user_passwords (id, hash)
 		return nil, err
 	}
 
-	f, err := r.GetUserByEmail(u.Email)
-	return &f.User, err
+	return getUserByEmail(u.Email, r.db)
 }
 
 // GetUserByEmail finds a single user based on their email address.
@@ -81,7 +75,7 @@ SELECT f.email
 	WHERE u.email = $1
 	AND u.id = fu.follower_id
 	AND f.id = fu.followed_id
-`)
+`, em)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +92,7 @@ SELECT a.slug
 	WHERE u.email = $1
 	AND u.id = fa.user_id
 	AND a.id = fa.article_id
-`)
+`, em)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +110,8 @@ SELECT a.slug
 }
 
 func getUserByEmail(em string, q queryer) (*domain.User, error) {
-	var found *domain.User
-	err := q.GetContext(ctx, &found, `
+	found := new(domain.User)
+	err := q.GetContext(ctx, found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
 	FROM users u, user_passwords p
 	WHERE u.email = $1 
@@ -143,11 +137,11 @@ func (r *implementation) GetAuthorByEmail(em string) domain.Author {
 
 // GetUserByUsername finds a single user based on their username.
 func (r *implementation) GetUserByUsername(un string) (*domain.User, error) {
-	var found *domain.User
-	err := r.db.GetContext(ctx, &found, `
+	found := new(domain.User)
+	err := r.db.GetContext(ctx, found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
 	FROM users u, user_passwords p
-	WHERE u.email = $1 
+	WHERE u.username = $1 
 	AND u.id = p.id`, un)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrUserNotFound
@@ -179,12 +173,13 @@ func (r *implementation) UpdateUserByEmail(em string, update func(*domain.User) 
 		return nil, err
 	}
 
-	res, err := tx.ExecContext(ctx, `
+	var id int
+	err = tx.QueryRowContext(ctx, `
 UPDATE users 
 	SET email = $2, username = $3, bio = $4, image = $5
 	WHERE email = $1
 	RETURNING id`,
-		em, u.Email, u.Username, u.Bio, u.Image)
+		em, u.Email, u.Username, u.Bio, u.Image).Scan(&id)
 
 	if err != nil {
 		tx.Rollback()
@@ -194,12 +189,6 @@ UPDATE users
 			return nil, domain.ErrDuplicateUser
 		}
 
-		return nil, err
-	}
-
-	id, err := res.LastInsertId()
-	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 

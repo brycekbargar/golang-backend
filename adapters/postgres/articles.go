@@ -19,7 +19,8 @@ func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArtic
 	res, err := tx.ExecContext(ctx, `
 INSERT INTO articles (slug, title, description, body, author_id)
 	(SELECT $2, $3, $4, $5, u.id
-	FROM users u WHERE u.email = $1)`)
+	FROM users u WHERE u.email = $1)`,
+		a.AuthorEmail, a.Slug, a.Title, a.Description, a.Body)
 	if err != nil {
 		tx.Rollback()
 
@@ -75,12 +76,12 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 }
 
 func getArticleBySlug(s string, q queryer) (*domain.Article, error) {
-	var found *domain.Article
-	err := q.GetContext(ctx, &found, `
+	found := new(domain.Article)
+	err := q.GetContext(ctx, found, `
 SELECT a.slug, a.title, a.description, a.body, a.created AS createdatutc, a.updated AS updatedatutc, u.email AS authoremail
 	FROM articles a, users u 
 	WHERE a.slug = $1
-	AND a.author_id = u.idk`, s)
+	AND a.author_id = u.id`, s)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrArticleNotFound
 	}
@@ -117,10 +118,11 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 	}
 
 	res, err := tx.ExecContext(ctx, `
-UPDATE articles a FROM users u
-	SET a.slug = $3, a.title = $4, a.description = $5, a.body = $6, a.updated = now() at time zone 'utc', a.author_id = u.id
-	WHERE a.slug = $1
-	AND u.email = a.$2
+UPDATE articles
+	SET slug = $3, title = $4, description = $5, body = $6, updated = now() at time zone 'utc', author_id = u.id
+ 	FROM users u
+	WHERE slug = $1
+	AND u.email = $2
 	`, s, a.AuthorEmail, a.Slug, a.Title, a.Description, a.Body)
 
 	if err != nil {

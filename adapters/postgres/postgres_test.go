@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 
 		_, err = db.Exec(context.Background(), fmt.Sprintf("DROP DATABASE %s", testDB))
 		if err != nil {
-			panic(err)
+			fmt.Print(err)
 		}
 	}()
 
