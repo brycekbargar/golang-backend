@@ -14,6 +14,7 @@ import (
 )
 
 var uut domain.Repository
+var dsn string
 
 func TestMain(m *testing.M) {
 	connString := "host=127.0.0.1 user=postgres password=test timezone=universal"
@@ -44,10 +45,20 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
+	dsn = fmt.Sprintf("%s dbname=%s", connString, testDB)
 	uut = postgres.
-		MustNewInstance(fmt.Sprintf("%s dbname=%s", connString, testDB)).
+		MustNewInstance(dsn).
 		MustMigrate()
 	os.Exit(m.Run())
+}
+
+func Test_RepositoryMustMigrate(t *testing.T) {
+	postgres.MustNewInstance(dsn).MustMigrate()
+	postgres.MustNewInstance(dsn).MustMigrate()
+	r := postgres.MustNewInstance(dsn)
+	r.MustMigrate()
+	postgres.MustNewInstance(dsn).MustMigrate()
+	r.MustMigrate()
 }
 
 func Test_Users(t *testing.T) {
