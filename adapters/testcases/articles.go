@@ -341,6 +341,7 @@ func Articles_DistinctTags(
 	require.NoError(t, err)
 
 	assert.Contains(t, tags, "stimulating one", "stimulating two")
+	assert.Contains(t, tags, "stimulating two")
 	assert.Contains(t, tags, "helpless three")
 	htt := false
 	for i := range tags {

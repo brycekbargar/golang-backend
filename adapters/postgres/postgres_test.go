@@ -112,9 +112,9 @@ func Test_Articles(t *testing.T) {
 			t.Parallel()
 			testcases.Articles_UpdateCommentsBySlug(t, uut)
 		})
-		t.Run("Query Tags", func(t *testing.T) {
-			t.Parallel()
-			testcases.Articles_DistinctTags(t, uut)
-		})
 	*/
+	t.Run("Query Tags", func(t *testing.T) {
+		t.Parallel()
+		testcases.Articles_DistinctTags(t, uut)
+	})
 }

@@ -79,6 +79,7 @@ CREATE TABLE articles (
 	title		text NOT NULL,
 	description	text,
 	body 		text,
+	tags 		text[],
 	created	 	timestamp WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
 	updated	 	timestamp WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
 	author_id 	integer NOT NULL REFERENCES users ON DELETE CASCADE

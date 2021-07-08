@@ -18,10 +18,10 @@ func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArtic
 	}
 
 	res, err := tx.Exec(ctx, `
-INSERT INTO articles (slug, title, description, body, author_id)
-	(SELECT $2, $3, $4, $5, u.id
+INSERT INTO articles (slug, title, description, body, tags, author_id)
+	(SELECT $2, $3, $4, $5, $6, u.id
 	FROM users u WHERE u.email = $1)`,
-		a.AuthorEmail, a.Slug, a.Title, a.Description, a.Body)
+		a.AuthorEmail, a.Slug, a.Title, a.Description, a.Body, a.TagList)
 	if err != nil {
 		tx.Rollback(ctx)
 
@@ -79,7 +79,7 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 func getArticleBySlug(s string, q pgxscan.Querier) (*domain.Article, error) {
 	found := new(domain.Article)
 	err := pgxscan.Get(ctx, q, found, `
-SELECT a.slug, a.title, a.description, a.body, a.created AS created_at_utc, a.updated AS updated_at_utc, u.email AS author_email
+SELECT a.slug, a.title, a.description, a.body, a.tags as tag_list, a.created AS created_at_utc, a.updated AS updated_at_utc, u.email AS author_email
 	FROM articles a, users u 
 	WHERE a.slug = $1
 	AND a.author_id = u.id`, s)
@@ -190,5 +190,13 @@ DELETE FROM articles a
 
 // DistinctTags returns a distinct list of tags on all articles
 func (r *implementation) DistinctTags() ([]string, error) {
-	return nil, nil
+	var tags []string
+	err := pgxscan.Select(ctx, r.db, &tags, `
+SELECT DISTINCT UNNEST(tags) FROM articles
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	return tags, nil
 }
