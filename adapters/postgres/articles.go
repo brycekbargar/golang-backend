@@ -70,9 +70,22 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 		return nil, err
 	}
 
+	var favs int
+	err = tx.QueryRow(ctx, `
+SELECT COUNT(*)
+	FROM articles a, favorited_articles fa
+	WHERE a.slug = $1
+	AND a.id = fa.article_id
+`,
+		s).Scan(&favs)
+	if err != nil {
+		return nil, err
+	}
+
 	return &domain.AuthoredArticle{
-		Article: *found,
-		Author:  auth,
+		Article:       *found,
+		Author:        *auth,
+		FavoriteCount: favs,
 	}, nil
 }
 

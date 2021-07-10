@@ -214,5 +214,89 @@ UPDATE user_passwords
 // UpdateFanboyByEmail finds a single user based on their email address,
 // then applies the provide mutations (probably to the follower list).
 func (r *implementation) UpdateFanboyByEmail(em string, update func(*domain.Fanboy) (*domain.Fanboy, error)) error {
+	f, err := r.GetUserByEmail(em)
+	if err != nil {
+		return err
+	}
+
+	f, err = update(f)
+	if err != nil {
+		return err
+	}
+
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `
+DELETE FROM followed_users
+	USING users u
+	WHERE u.email = $1
+	AND follower_id = u.id
+`,
+		em)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `
+DELETE FROM favorited_articles
+	USING users u
+	WHERE u.email = $1
+	AND user_id = u.id
+`,
+		em)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	follows := make([]string, 0, len(f.Following))
+	for k := range f.Following {
+		if k != "" {
+			follows = append(follows, k)
+		}
+	}
+
+	_, err = tx.Exec(ctx, `
+INSERT INTO followed_users (follower_id, followed_id)
+	(SELECT u.id, f.id
+		FROM users u, users f
+		WHERE u.email = $1
+		AND f.email = ANY($2))
+`,
+		em, follows)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	favors := make([]string, 0, len(f.Favorites))
+	for k := range f.Favorites {
+		if k != "" {
+			favors = append(favors, k)
+		}
+	}
+
+	_, err = tx.Exec(ctx, `
+INSERT INTO favorited_articles (user_id, article_id)
+	(SELECT u.id, a.id
+		FROM users u, articles a
+		WHERE u.email = $1
+		AND a.slug = ANY($2))
+`,
+		em, favors)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return err
+	}
+
 	return nil
+
 }

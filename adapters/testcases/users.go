@@ -140,31 +140,35 @@ func Users_UpdateFanboyByEmail_Following(
 		require.NoError(t, err)
 	}
 
-	r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(
 		"user@gifted.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.StartFollowing("user@lumpy.com")
 			f.StartFollowing("user@remarkable.com")
 			return f, nil
 		})
+	require.NoError(t, err)
+
 	fu, err = r.GetUserByEmail("user@gifted.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FollowingEmails(), 2)
 	assert.True(t, fu.IsFollowing("user@lumpy.com"))
 	assert.False(t, fu.IsFollowing("user@valuable.com"))
 
-	r.UpdateUserByEmail(
+	_, err = r.UpdateUserByEmail(
 		"user@remarkable.com",
 		func(u *domain.User) (*domain.User, error) {
 			u.Email = "user@best.com"
 			return u, nil
 		})
+	require.NoError(t, err)
+
 	fu, err = r.GetUserByEmail("user@gifted.com")
 	require.NoError(t, err)
 	assert.True(t, fu.IsFollowing("user@best.com"))
 	assert.False(t, fu.IsFollowing("user@remarkable.com"))
 
-	r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(
 		"user@gifted.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.StopFollowing("user@best.com")
@@ -173,6 +177,8 @@ func Users_UpdateFanboyByEmail_Following(
 			f.StartFollowing("not an email")
 			return f, nil
 		})
+	require.NoError(t, err)
+
 	fu, err = r.GetUserByEmail("user@gifted.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FollowingEmails(), 3)
@@ -205,13 +211,15 @@ func Users_UpdateFanboyByEmail_Favorites(
 		require.NoError(t, err)
 	}
 
-	r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(
 		"user@luxuriant.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.Favorite("callous-title")
 			f.Favorite("aware-title")
 			return f, nil
 		})
+	require.NoError(t, err)
+
 	fu, err = r.GetUserByEmail("user@luxuriant.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FavoritedSlugs(), 2)
@@ -235,18 +243,20 @@ func Users_UpdateFanboyByEmail_Favorites(
 	require.NoError(t, err)
 	assert.Equal(t, 2, fa.FavoriteCount)
 
-	r.UpdateArticleBySlug(
+	_, err = r.UpdateArticleBySlug(
 		"callous-title",
 		func(a *domain.Article) (*domain.Article, error) {
 			a.SetTitle("careful-title")
 			return a, nil
 		})
+	require.NoError(t, err)
+
 	fu, err = r.GetUserByEmail("user@luxuriant.com")
 	require.NoError(t, err)
 	assert.True(t, fu.Favors("careful-title"))
 	assert.False(t, fu.Favors("callous-title"))
 
-	r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(
 		"user@luxuriant.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.Unfavorite("aware-title")
@@ -254,6 +264,8 @@ func Users_UpdateFanboyByEmail_Favorites(
 			f.Favorite("magnificient-title")
 			return f, nil
 		})
+	require.NoError(t, err)
+
 	fu, err = r.GetUserByEmail("user@luxuriant.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FavoritedSlugs(), 2)

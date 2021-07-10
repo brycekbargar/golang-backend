@@ -76,16 +76,14 @@ func Test_Users(t *testing.T) {
 		t.Parallel()
 		testcases.Users_GetUserByUsername(t, uut)
 	})
-	/*
-		t.Run("Fanboy Following Users", func(t *testing.T) {
-			t.Parallel()
-			testcases.Users_UpdateFanboyByEmail_Following(t, uut)
-		})
-		t.Run("Fanboy Favoriting Articles", func(t *testing.T) {
-			t.Parallel()
-			testcases.Users_UpdateFanboyByEmail_Favorites(t, uut)
-		})
-	*/
+	t.Run("Fanboy Following Users", func(t *testing.T) {
+		t.Parallel()
+		testcases.Users_UpdateFanboyByEmail_Following(t, uut)
+	})
+	t.Run("Fanboy Favoriting Articles", func(t *testing.T) {
+		t.Parallel()
+		testcases.Users_UpdateFanboyByEmail_Favorites(t, uut)
+	})
 }
 
 func Test_Articles(t *testing.T) {
