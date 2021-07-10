@@ -146,9 +146,9 @@ func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, 
 	}
 
 	if ar, ok := r.articles[strings.ToLower(s)]; ok {
-		cs := make([]*domain.Comment, 0, len(ar.comments))
+		cs := make([]domain.Comment, 0, len(ar.comments))
 		for _, c := range ar.comments {
-			cs = append(cs, &domain.Comment{
+			cs = append(cs, domain.Comment{
 				ID:           c.id,
 				Body:         c.body,
 				CreatedAtUTC: c.createdAtUTC,
@@ -243,7 +243,7 @@ func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.Comm
 		}
 	}
 
-	ncs := make([]*domain.Comment, 0, len(a.Comments))
+	ncs := make([]domain.Comment, 0, len(a.Comments))
 	cs := make([]*commentRecord, 0, len(a.Comments))
 	for _, c := range a.Comments {
 		if c.ID == 0 {
@@ -262,7 +262,7 @@ func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.Comm
 	r.articles[strings.ToLower(a.Slug)].comments = cs
 
 	if len(ncs) > 0 {
-		return ncs[0], nil
+		return &ncs[0], nil
 	}
 
 	return nil, nil

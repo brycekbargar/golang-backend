@@ -165,7 +165,7 @@ func TestArticle_Comments(t *testing.T) {
 
 	ca := domain.CommentedArticle{
 		Article: domain.Article{},
-		Comments: []*domain.Comment{
+		Comments: []domain.Comment{
 			{ID: 5},
 			{ID: 8},
 			{ID: 13},

@@ -277,7 +277,7 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 
 	return ctx.JSON(
 		http.StatusOK,
-		serialization.CommentToComment(newc, u, u))
+		serialization.CommentToComment(*newc, u, u))
 }
 
 func (h *articlesHandler) removeComment(ctx echo.Context) error {

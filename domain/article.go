@@ -28,7 +28,7 @@ type Article struct {
 // CommentedArticle is an individual post in the application with its comment information included.
 type CommentedArticle struct {
 	Article
-	Comments []*Comment
+	Comments []Comment
 }
 
 // AuthoredArticle is an individual post in the application with its author information included.
@@ -93,7 +93,7 @@ func (a *CommentedArticle) AddComment(body string, authorEmail string) error {
 		return err
 	}
 
-	a.Comments = append(a.Comments, c)
+	a.Comments = append(a.Comments, *c)
 	return nil
 }
 

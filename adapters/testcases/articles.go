@@ -310,7 +310,7 @@ func Articles_UpdateCommentsBySlug(
 	a, err = r.GetCommentsBySlug("tedious-title")
 	require.NoError(t, err)
 
-	assert.Len(t, a.Comments, 1)
+	require.Len(t, a.Comments, 1)
 	assert.Positive(t, a.Comments[0].ID)
 	assert.Equal(t, "quirky body", a.Comments[0].Body)
 	assert.Equal(t, "user@simplistic.com", a.Comments[0].AuthorEmail)

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"errors"
+	"time"
 
 	"github.com/brycekbargar/realworld-backend/domain"
 	"github.com/georgysavva/scany/pgxscan"
@@ -107,8 +108,34 @@ SELECT a.slug, a.title, a.description, a.body, a.tags as tag_list, a.created AS 
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
-func (r *implementation) GetCommentsBySlug(string) (*domain.CommentedArticle, error) {
-	return nil, nil
+func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, error) {
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit(ctx)
+
+	found, err := getArticleBySlug(s, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	var comments []domain.Comment
+	err = pgxscan.Select(ctx, tx, &comments, `
+SELECT c.id, c.body, c.created as created_at_utc, u.email as author_email
+	FROM articles a, article_comments c, users u
+	WHERE a.slug = $1
+	AND a.id = c.article_id
+	AND u.id = c.author_id
+`, s)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.CommentedArticle{
+		Article:  *found,
+		Comments: comments,
+	}, nil
 }
 
 // UpdateArticleBySlug finds a single article based on its slug
@@ -167,7 +194,75 @@ UPDATE articles
 
 // UpdateCommentsBySlug finds a single article based on its slug
 // then applies the provide mutations to its comments.
-func (r *implementation) UpdateCommentsBySlug(string, func(*domain.CommentedArticle) (*domain.CommentedArticle, error)) (*domain.Comment, error) {
+func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.CommentedArticle) (*domain.CommentedArticle, error)) (*domain.Comment, error) {
+	a, err := r.GetCommentsBySlug(s)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err = update(a)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var new *domain.Comment
+	ids := make([]int, 0, len(a.Comments))
+	for _, c := range a.Comments {
+		if c.ID <= 0 {
+			new = &c
+		} else {
+			ids = append(ids, c.ID)
+		}
+	}
+
+	_, err = tx.Exec(ctx, `
+DELETE FROM article_comments
+	USING articles a 
+	WHERE a.slug = $1
+	AND a.id = article_id
+	AND article_comments.id <> ANY($2)
+`,
+		s, ids)
+	if err != nil {
+		tx.Rollback(ctx)
+		return nil, err
+	}
+
+	if new != nil {
+		var id int
+		var created time.Time
+		err = tx.QueryRow(ctx, `
+INSERT INTO article_comments (article_id, author_id, body)
+	(SELECT a.id, u.id, $3
+		FROM articles a, users u
+		WHERE a.slug = $1
+		AND u.email = $2)
+	RETURNING id, created`,
+			a.Slug, new.AuthorEmail, new.Body).Scan(&id, &created)
+
+		if err != nil {
+			tx.Rollback(ctx)
+
+			return nil, err
+		}
+
+		new.ID = id
+		new.CreatedAtUTC = created
+
+		if err = tx.Commit(ctx); err != nil {
+			return nil, err
+		}
+		return new, nil
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 

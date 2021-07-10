@@ -86,10 +86,19 @@ CREATE TABLE articles (
 );
 
 CREATE TABLE favorited_articles (
-	user_id integer NOT NULL REFERENCES users ON DELETE CASCADE,
-	article_id integer NOT NULL REFERENCES articles ON DELETE CASCADE,
+	user_id 	integer NOT NULL REFERENCES users ON DELETE CASCADE,
+	article_id 	integer NOT NULL REFERENCES articles ON DELETE CASCADE,
 	UNIQUE (user_id, article_id)
-);`)
+);
+
+CREATE TABLE article_comments (
+	id 			serial PRIMARY KEY,
+	article_id 	integer NOT NULL REFERENCES articles ON DELETE CASCADE,
+	author_id 	integer NOT NULL REFERENCES users ON DELETE CASCADE,
+	body		text,
+	created	 	timestamp WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc')
+);
+`)
 	}
 	if err != nil {
 		panic(err)

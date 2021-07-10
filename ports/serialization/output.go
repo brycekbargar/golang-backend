@@ -166,7 +166,7 @@ type commentList struct {
 }
 
 func internalComment(
-	c *domain.Comment,
+	c domain.Comment,
 	a domain.Author,
 	cu *domain.Fanboy,
 ) interface{} {
@@ -186,7 +186,7 @@ func internalComment(
 }
 
 func CommentToComment(
-	c *domain.Comment,
+	c domain.Comment,
 	a domain.Author,
 	cu *domain.Fanboy,
 ) interface{} {
