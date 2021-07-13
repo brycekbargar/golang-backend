@@ -61,26 +61,17 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 	}
 	defer tx.Commit(ctx)
 
-	found, faves, err := getArticleBySlug(s, tx)
+	found, err := getArticleBySlug(tx, s)
 	if err != nil {
 		return nil, err
 	}
 
-	auth, err := getUserByEmail(found.AuthorEmail, tx)
-	if err != nil {
-		return nil, domain.ErrNoAuthor
-	}
-
-	return &domain.AuthoredArticle{
-		Article:       *found,
-		Author:        *auth,
-		FavoriteCount: faves,
-	}, nil
+	return &found[0], nil
 }
 
-func getArticleBySlug(s string, q pgxscan.Querier) (*domain.Article, int, error) {
-	found := new(domain.AuthoredArticle)
-	err := pgxscan.Get(ctx, q, found, `
+func getArticleBySlug(q pgxscan.Querier, s ...string) ([]domain.AuthoredArticle, error) {
+	var found []domain.AuthoredArticle
+	err := pgxscan.Select(ctx, q, &found, `
 WITH faves AS (
 	SELECT 
 		a.id
@@ -88,7 +79,6 @@ WITH faves AS (
 	FROM articles a
 	LEFT JOIN favorited_articles fa ON
 		a.id = fa.article_id
-	WHERE a.slug = $1
 	GROUP BY a.id
 )
 SELECT
@@ -105,19 +95,26 @@ FROM
 	articles a
 	,users u
 	,faves f
-WHERE a.slug = $1
+WHERE a.slug = ANY($1)
 AND a.author_id = u.id
 AND a.id = f.id
 `,
 		s)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, 0, domain.ErrArticleNotFound
+	if errors.Is(err, pgx.ErrNoRows) ||
+		(err == nil && len(found) == 0) {
+		return nil, domain.ErrArticleNotFound
 	}
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return &found.Article, found.FavoriteCount, nil
+	// TODO: Cache the authors? Somehow read map them using scany?
+	for i := range found {
+		a := &found[i]
+		a.Author, _ = getUserByEmail(q, a.AuthorEmail)
+	}
+
+	return found, nil
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
@@ -128,7 +125,7 @@ func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, 
 	}
 	defer tx.Commit(ctx)
 
-	found, _, err := getArticleBySlug(s, tx)
+	found, err := getArticleBySlug(tx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +143,7 @@ SELECT c.id, c.body, c.created as created_at_utc, u.email as author_email
 	}
 
 	return &domain.CommentedArticle{
-		Article:  *found,
+		Article:  found[0].Article,
 		Comments: comments,
 	}, nil
 }
@@ -159,13 +156,13 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 		return nil, err
 	}
 
-	a, _, err := getArticleBySlug(s, tx)
+	as, err := getArticleBySlug(tx, s)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
 	}
 
-	a, err = update(a)
+	a, err := update(&as[0].Article)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err

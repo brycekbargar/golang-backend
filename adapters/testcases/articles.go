@@ -31,6 +31,7 @@ func Articles_CreateArticle(
 	assert.Zero(t, ca.FavoriteCount)
 
 	assert.Equal(t, a.AuthorEmail, ca.AuthorEmail)
+	require.NotNil(t, ca.Author)
 	assert.Equal(t, a.AuthorEmail, ca.Author.GetEmail())
 	assert.Equal(t, u.Bio, ca.Author.GetBio())
 	assert.Equal(t, u.Image, ca.Author.GetImage())
@@ -94,6 +95,7 @@ func Articles_GetArticleBySlug(
 	assert.Equal(t, a.Body, fa.Body)
 
 	assert.Equal(t, a.AuthorEmail, fa.AuthorEmail)
+	require.NotNil(t, fa.Author)
 	assert.Equal(t, a.AuthorEmail, fa.Author.GetEmail())
 	assert.Equal(t, u.Bio, fa.Author.GetBio())
 	assert.Equal(t, u.Image, fa.Author.GetImage())

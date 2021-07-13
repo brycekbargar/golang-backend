@@ -53,7 +53,7 @@ INSERT INTO user_passwords (id, hash)
 		return nil, err
 	}
 
-	return getUserByEmail(u.Email, r.db)
+	return getUserByEmail(r.db, u.Email)
 }
 
 // GetUserByEmail finds a single user based on their email address.
@@ -64,7 +64,7 @@ func (r *implementation) GetUserByEmail(em string) (*domain.Fanboy, error) {
 	}
 	defer tx.Commit(ctx)
 
-	found, err := getUserByEmail(em, tx)
+	found, err := getUserByEmail(tx, em)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ SELECT a.slug
 	}, nil
 }
 
-func getUserByEmail(em string, q pgxscan.Querier) (*domain.User, error) {
+func getUserByEmail(q pgxscan.Querier, em string) (*domain.User, error) {
 	found := new(domain.User)
 	err := pgxscan.Get(ctx, q, found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
@@ -129,7 +129,7 @@ SELECT u.email, u.username, u.bio, u.image, p.hash as password
 
 // GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
 func (r *implementation) GetAuthorByEmail(em string) domain.Author {
-	auth, err := getUserByEmail(em, r.db)
+	auth, err := getUserByEmail(r.db, em)
 	if err != nil {
 		return nil
 	}
@@ -162,7 +162,7 @@ func (r *implementation) UpdateUserByEmail(em string, update func(*domain.User) 
 		return nil, err
 	}
 
-	u, err := getUserByEmail(em, tx)
+	u, err := getUserByEmail(tx, em)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
@@ -208,7 +208,7 @@ UPDATE user_passwords
 		return nil, err
 	}
 
-	return getUserByEmail(u.Email, r.db)
+	return getUserByEmail(r.db, u.Email)
 }
 
 // UpdateFanboyByEmail finds a single user based on their email address,
