@@ -61,50 +61,63 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 	}
 	defer tx.Commit(ctx)
 
-	found, err := getArticleBySlug(s, tx)
+	found, faves, err := getArticleBySlug(s, tx)
 	if err != nil {
 		return nil, err
 	}
 
 	auth, err := getUserByEmail(found.AuthorEmail, tx)
 	if err != nil {
-		return nil, err
-	}
-
-	var favs int
-	err = tx.QueryRow(ctx, `
-SELECT COUNT(*)
-	FROM articles a, favorited_articles fa
-	WHERE a.slug = $1
-	AND a.id = fa.article_id
-`,
-		s).Scan(&favs)
-	if err != nil {
-		return nil, err
+		return nil, domain.ErrNoAuthor
 	}
 
 	return &domain.AuthoredArticle{
 		Article:       *found,
 		Author:        *auth,
-		FavoriteCount: favs,
+		FavoriteCount: faves,
 	}, nil
 }
 
-func getArticleBySlug(s string, q pgxscan.Querier) (*domain.Article, error) {
-	found := new(domain.Article)
+func getArticleBySlug(s string, q pgxscan.Querier) (*domain.Article, int, error) {
+	found := new(domain.AuthoredArticle)
 	err := pgxscan.Get(ctx, q, found, `
-SELECT a.slug, a.title, a.description, a.body, a.tags as tag_list, a.created AS created_at_utc, a.updated AS updated_at_utc, u.email AS author_email
-	FROM articles a, users u 
+WITH faves AS (
+	SELECT 
+		a.id
+		,COUNT(fa.article_id) AS count
+	FROM articles a
+	LEFT JOIN favorited_articles fa ON
+		a.id = fa.article_id
 	WHERE a.slug = $1
-	AND a.author_id = u.id`, s)
+	GROUP BY a.id
+)
+SELECT
+	a.slug
+	,a.title
+	,a.description
+	,a.body
+	,a.tags as tag_list
+	,a.created AS created_at_utc
+	,a.updated AS updated_at_utc
+	,u.email AS author_email
+	,f.count AS favorite_count
+FROM 
+	articles a
+	,users u
+	,faves f
+WHERE a.slug = $1
+AND a.author_id = u.id
+AND a.id = f.id
+`,
+		s)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, domain.ErrArticleNotFound
+		return nil, 0, domain.ErrArticleNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return found, nil
+	return &found.Article, found.FavoriteCount, nil
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
@@ -115,7 +128,7 @@ func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, 
 	}
 	defer tx.Commit(ctx)
 
-	found, err := getArticleBySlug(s, tx)
+	found, _, err := getArticleBySlug(s, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +159,7 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 		return nil, err
 	}
 
-	a, err := getArticleBySlug(s, tx)
+	a, _, err := getArticleBySlug(s, tx)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
