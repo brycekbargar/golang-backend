@@ -150,17 +150,17 @@ func Articles_LatestArticlesByCriteria(
 ) {
 	tt := "Articles_LatestArticlesByCriteria"
 
-	authors := []*domain.User{
-		testAuthor("frail"),
-		testAuthor("simple"),
-		testAuthor("reminiscent"),
+	authors := []domain.User{
+		*testAuthor("frail"),
+		*testAuthor("simple"),
+		*testAuthor("reminiscent"),
 	}
 	for _, a := range authors {
-		_, err := r.CreateUser(a)
+		_, err := r.CreateUser(&a)
 		require.NoError(t, err)
 	}
 
-	source := make([]*domain.AuthoredArticle, 0, 13)
+	source := make([]domain.AuthoredArticle, 0, 13)
 	for i, adj := range []string{
 		"bright",
 		"colorful",
@@ -185,13 +185,13 @@ func Articles_LatestArticlesByCriteria(
 
 		fa, err := r.GetArticleBySlug(a.Slug)
 		require.NoError(t, err)
-		source = append(source, fa)
+		source = append(source, *fa)
 	}
 
 	cases := []struct {
 		Name  string
 		Query domain.ListCriteria
-		Try   func([]*domain.AuthoredArticle, error)
+		Try   func([]domain.AuthoredArticle, error)
 	}{
 		{
 			"All Tagged",
@@ -200,7 +200,7 @@ func Articles_LatestArticlesByCriteria(
 				Offset: 0,
 				Limit:  13,
 			},
-			func(all []*domain.AuthoredArticle, err error) {
+			func(all []domain.AuthoredArticle, err error) {
 				require.NoError(t, err)
 
 				assert.ElementsMatch(t, source, all)
@@ -213,7 +213,7 @@ func Articles_LatestArticlesByCriteria(
 				Offset: 2,
 				Limit:  5,
 			},
-			func(some []*domain.AuthoredArticle, err error) {
+			func(some []domain.AuthoredArticle, err error) {
 				require.NoError(t, err)
 
 				assert.Len(t, some, 5)
@@ -229,7 +229,7 @@ func Articles_LatestArticlesByCriteria(
 				Limit:        13,
 				AuthorEmails: []string{"author@frail.com", "author@simple.com"},
 			},
-			func(authored []*domain.AuthoredArticle, err error) {
+			func(authored []domain.AuthoredArticle, err error) {
 				require.NoError(t, err)
 
 				assert.NotEmpty(t, authored)

@@ -49,7 +49,7 @@ INSERT INTO articles (slug, title, description, body, tags, author_id)
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-func (r *implementation) LatestArticlesByCriteria(domain.ListCriteria) ([]*domain.AuthoredArticle, error) {
+func (r *implementation) LatestArticlesByCriteria(domain.ListCriteria) ([]domain.AuthoredArticle, error) {
 	return nil, nil
 }
 

@@ -55,7 +55,7 @@ type articleRecord struct {
 	createdAtUTC time.Time
 	updatedAtUTC time.Time
 	author       string
-	comments     []*commentRecord
+	comments     []commentRecord
 }
 
 type commentRecord struct {

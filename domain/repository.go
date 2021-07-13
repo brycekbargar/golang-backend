@@ -46,7 +46,7 @@ type Repository interface {
 	// CreateArticle creates a new article.
 	CreateArticle(*Article) (*AuthoredArticle, error)
 	// LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-	LatestArticlesByCriteria(ListCriteria) ([]*AuthoredArticle, error)
+	LatestArticlesByCriteria(ListCriteria) ([]AuthoredArticle, error)
 	// GetArticleBySlug gets a single article with the given slug.
 	GetArticleBySlug(string) (*AuthoredArticle, error)
 	// GetCommentsBySlug gets a single article and its comments with the given slug.

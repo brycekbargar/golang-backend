@@ -33,18 +33,18 @@ func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArtic
 		now,
 		now,
 		a.AuthorEmail,
-		make([]*commentRecord, 0),
+		make([]commentRecord, 0),
 	}
 	return r.GetArticleBySlug(a.Slug)
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
 func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
-	[]*domain.AuthoredArticle,
+	[]domain.AuthoredArticle,
 	error,
 ) {
 	// i wish this was sql qq
-	results := make([]*domain.AuthoredArticle, 0, query.Limit)
+	results := make([]domain.AuthoredArticle, 0, query.Limit)
 
 	off := 0
 	lim := 0
@@ -61,9 +61,9 @@ func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
 		am[strings.ToLower(ae)] = nil
 	}
 
-	ordered := make([]*articleRecord, 0, len(r.articles))
+	ordered := make([]articleRecord, 0, len(r.articles))
 	for _, ar := range r.articles {
-		ordered = append(ordered, ar)
+		ordered = append(ordered, *ar)
 	}
 	sort.Slice(ordered, func(i, j int) bool {
 		return ordered[i].createdAtUTC.After(ordered[j].createdAtUTC)
@@ -92,7 +92,7 @@ func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
 		if err != nil {
 			continue
 		}
-		results = append(results, da)
+		results = append(results, *da)
 
 		lim++
 		if lim >= query.Limit {
@@ -214,7 +214,7 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 		a.CreatedAtUTC,
 		now,
 		a.AuthorEmail,
-		make([]*commentRecord, 0),
+		make([]commentRecord, 0),
 	}
 
 	return r.GetArticleBySlug(a.Slug)
@@ -244,7 +244,7 @@ func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.Comm
 	}
 
 	ncs := make([]domain.Comment, 0, len(a.Comments))
-	cs := make([]*commentRecord, 0, len(a.Comments))
+	cs := make([]commentRecord, 0, len(a.Comments))
 	for _, c := range a.Comments {
 		if c.ID == 0 {
 			id++
@@ -252,7 +252,7 @@ func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.Comm
 			c.CreatedAtUTC = time.Now().UTC()
 			ncs = append(ncs, c)
 		}
-		cs = append(cs, &commentRecord{
+		cs = append(cs, commentRecord{
 			id:           c.ID,
 			body:         c.Body,
 			createdAtUTC: c.CreatedAtUTC,

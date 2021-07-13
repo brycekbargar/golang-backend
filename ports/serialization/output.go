@@ -135,7 +135,7 @@ func AuthoredArticleToArticle(
 
 // ManyAuthoredArticlesToArticles converts multiple domain articles into an output serialiable list of articles for the current user.
 func ManyAuthoredArticlesToArticles(
-	as []*domain.AuthoredArticle,
+	as []domain.AuthoredArticle,
 	cu *domain.Fanboy,
 ) interface{} {
 	res := list{
@@ -143,7 +143,7 @@ func ManyAuthoredArticlesToArticles(
 		len(as),
 	}
 	for _, a := range as {
-		res.Articles = append(res.Articles, internalArticle(a, cu))
+		res.Articles = append(res.Articles, internalArticle(&a, cu))
 	}
 
 	return res
