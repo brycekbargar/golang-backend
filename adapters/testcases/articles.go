@@ -191,7 +191,7 @@ func Articles_LatestArticlesByCriteria(
 	cases := []struct {
 		Name  string
 		Query domain.ListCriteria
-		Try   func([]domain.AuthoredArticle, error)
+		Try   func(*testing.T) func([]domain.AuthoredArticle, error)
 	}{
 		{
 			"All Tagged",
@@ -200,10 +200,12 @@ func Articles_LatestArticlesByCriteria(
 				Offset: 0,
 				Limit:  13,
 			},
-			func(all []domain.AuthoredArticle, err error) {
-				require.NoError(t, err)
+			func(t *testing.T) func([]domain.AuthoredArticle, error) {
+				return func(all []domain.AuthoredArticle, err error) {
+					require.NoError(t, err)
 
-				assert.ElementsMatch(t, source, all)
+					assert.ElementsMatch(t, all, source)
+				}
 			},
 		},
 		{
@@ -213,12 +215,14 @@ func Articles_LatestArticlesByCriteria(
 				Offset: 2,
 				Limit:  5,
 			},
-			func(some []domain.AuthoredArticle, err error) {
-				require.NoError(t, err)
+			func(t *testing.T) func([]domain.AuthoredArticle, error) {
+				return func(some []domain.AuthoredArticle, err error) {
+					require.NoError(t, err)
 
-				assert.Len(t, some, 5)
-				assert.Equal(t, "public-title", some[0].Slug)
-				assert.Equal(t, "gruesome-title", some[4].Slug)
+					require.Len(t, some, 5)
+					assert.Equal(t, "public-title", some[0].Slug)
+					assert.Equal(t, "gruesome-title", some[4].Slug)
+				}
 			},
 		},
 		{
@@ -229,12 +233,14 @@ func Articles_LatestArticlesByCriteria(
 				Limit:        13,
 				AuthorEmails: []string{"author@frail.com", "author@simple.com"},
 			},
-			func(authored []domain.AuthoredArticle, err error) {
-				require.NoError(t, err)
+			func(t *testing.T) func([]domain.AuthoredArticle, error) {
+				return func(authored []domain.AuthoredArticle, err error) {
+					require.NoError(t, err)
 
-				assert.NotEmpty(t, authored)
-				for _, a := range authored {
-					assert.NotEqual(t, "author@reminiscent.com", a.AuthorEmail)
+					assert.NotEmpty(t, authored)
+					for _, a := range authored {
+						assert.NotEqual(t, "author@reminiscent.com", a.AuthorEmail)
+					}
 				}
 			},
 		},
@@ -244,7 +250,7 @@ func Articles_LatestArticlesByCriteria(
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
-			tc.Try(r.LatestArticlesByCriteria(tc.Query))
+			tc.Try(t)(r.LatestArticlesByCriteria(tc.Query))
 		})
 	}
 }

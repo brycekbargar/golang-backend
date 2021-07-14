@@ -49,8 +49,52 @@ INSERT INTO articles (slug, title, description, body, tags, author_id)
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-func (r *implementation) LatestArticlesByCriteria(domain.ListCriteria) ([]domain.AuthoredArticle, error) {
-	return nil, nil
+func (r *implementation) LatestArticlesByCriteria(lc domain.ListCriteria) ([]domain.AuthoredArticle, error) {
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit(ctx)
+
+	var slugs []string
+	err = pgxscan.Select(ctx, tx, &slugs, `
+WITH faves AS (
+	SELECT a.id, fu.email
+	FROM articles a
+	LEFT JOIN favorited_articles fa ON
+		fa.article_id = a.id
+	LEFT JOIN users fu ON
+		fa.user_id = fu.id
+), slugs AS (
+	SELECT DISTINCT
+		a.slug, a.updated
+	FROM articles a
+	INNER JOIN users u ON
+		a.author_id = u.id
+	LEFT JOIN faves f ON
+		a.id = f.id
+	WHERE (length($3) = 0 OR $3 = ANY(a.tags))
+	AND ($4::text[] IS NULL OR array_length($4::text[], 1) = 0 OR u.email = ANY($4))
+	AND (length($5) = 0 OR f.email = $5)
+	ORDER BY a.updated DESC
+)
+SELECT slug FROM slugs
+LIMIT $1 OFFSET $2
+`,
+		lc.Limit, lc.Offset, lc.Tag, lc.AuthorEmails, lc.FavoritedByUserEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	latest, err := getArticleBySlug(tx, slugs...)
+	if err == domain.ErrArticleNotFound {
+		return make([]domain.AuthoredArticle, 0), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return latest, nil
 }
 
 // GetArticleBySlug gets a single article with the given slug.
@@ -98,6 +142,7 @@ FROM
 WHERE a.slug = ANY($1)
 AND a.author_id = u.id
 AND a.id = f.id
+ORDER BY a.updated DESC
 `,
 		s)
 	if errors.Is(err, pgx.ErrNoRows) ||
