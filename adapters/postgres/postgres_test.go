@@ -32,7 +32,14 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
+	res := 0
 	defer func() {
+		if res != 0 {
+			// Save the test database when tests fail
+			fmt.Print(testDB)
+			return
+		}
+
 		db, err := pgx.Connect(context.Background(), connString)
 		if err != nil {
 			panic(err)
@@ -49,7 +56,8 @@ func TestMain(m *testing.M) {
 	uut = postgres.
 		MustNewInstance(dsn).
 		MustMigrate()
-	os.Exit(m.Run())
+	res = m.Run()
+	os.Exit(res)
 }
 
 func Test_RepositoryMustMigrate(t *testing.T) {
