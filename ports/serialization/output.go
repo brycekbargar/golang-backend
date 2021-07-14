@@ -195,14 +195,14 @@ func CommentToComment(
 
 func ArticleToCommentList(
 	ar *domain.CommentedArticle,
-	author func(string) domain.Author,
+	author func() func(string) domain.Author,
 	cu *domain.Fanboy,
 ) interface{} {
 	res := commentList{
 		make([]interface{}, 0, len(ar.Comments)),
 	}
 	for _, c := range ar.Comments {
-		if a := author(c.AuthorEmail); a != nil {
+		if a := author()(c.AuthorEmail); a != nil {
 			res.Comments = append(res.Comments, internalComment(c, a, cu))
 		}
 	}

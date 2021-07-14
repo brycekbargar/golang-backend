@@ -59,15 +59,15 @@ func makeJwt(r *usersHandler, e string) (string, error) {
 	return t, nil
 }
 
-func (r *usersHandler) create(c echo.Context) error {
-	user, err := serialization.RegisterToUser(c.Bind)
+func (h *usersHandler) create(ctx echo.Context) error {
+	user, err := serialization.RegisterToUser(ctx.Bind)
 	if err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
 			err)
 	}
 
-	created, err := r.repo.CreateUser(user)
+	created, err := h.repo.CreateUser(ctx.Request().Context(), user)
 	if err != nil {
 		if err == domain.ErrDuplicateUser {
 			return echo.NewHTTPError(
@@ -77,25 +77,25 @@ func (r *usersHandler) create(c echo.Context) error {
 		return err
 	}
 
-	token, err := makeJwt(r, created.Email)
+	token, err := makeJwt(h, created.Email)
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(
+	return ctx.JSON(
 		http.StatusOK,
 		serialization.UserToUser(created, token))
 }
 
-func (r *usersHandler) login(c echo.Context) error {
-	em, pw, err := serialization.LoginToCredentials(c.Bind)
+func (h *usersHandler) login(ctx echo.Context) error {
+	em, pw, err := serialization.LoginToCredentials(ctx.Bind)
 	if err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
 			err)
 	}
 
-	authed, err := r.repo.GetUserByEmail(em)
+	authed, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if err != nil {
 		return echo.ErrUnauthorized
 	}
@@ -104,23 +104,23 @@ func (r *usersHandler) login(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	token, err := makeJwt(r, authed.Email)
+	token, err := makeJwt(h, authed.Email)
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(
+	return ctx.JSON(
 		http.StatusOK,
 		serialization.UserToUser(&authed.User, token))
 }
 
-func (r *usersHandler) user(c echo.Context) error {
-	em, token, ok := c.(*userContext).identity()
+func (h *usersHandler) user(ctx echo.Context) error {
+	em, token, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
-	found, err := r.repo.GetUserByEmail(em)
+	found, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if err != nil {
 		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
@@ -128,25 +128,25 @@ func (r *usersHandler) user(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(
+	return ctx.JSON(
 		http.StatusOK,
 		serialization.UserToUser(&found.User, token.Raw))
 }
 
-func (r *usersHandler) update(c echo.Context) error {
-	em, _, ok := c.(*userContext).identity()
+func (h *usersHandler) update(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
-	delta, err := serialization.UpdateUserToDelta(c.Bind)
+	delta, err := serialization.UpdateUserToDelta(ctx.Bind)
 	if err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
 			err)
 	}
 
-	updated, err := r.repo.UpdateUserByEmail(
+	updated, err := h.repo.UpdateUserByEmail(ctx.Request().Context(),
 		em,
 		func(u *domain.User) (*domain.User, error) {
 			delta(u)
@@ -160,24 +160,24 @@ func (r *usersHandler) update(c echo.Context) error {
 	}
 
 	// Users can change their email so we need to make sure we're giving them a new token.
-	token, err := makeJwt(r, updated.Email)
+	token, err := makeJwt(h, updated.Email)
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(
+	return ctx.JSON(
 		http.StatusOK,
 		serialization.UserToUser(updated, token))
 }
 
-func (r *usersHandler) profile(c echo.Context) (err error) {
-	em, _, _ := c.(*userContext).identity()
+func (h *usersHandler) profile(ctx echo.Context) (err error) {
+	em, _, _ := ctx.(*userContext).identity()
 
-	if len(c.Param("username")) == 0 {
+	if len(ctx.Param("username")) == 0 {
 		return echo.ErrBadRequest
 	}
 
-	found, err := r.repo.GetUserByUsername(c.Param("username"))
+	found, err := h.repo.GetUserByUsername(ctx.Request().Context(), ctx.Param("username"))
 	if err != nil {
 		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
@@ -187,7 +187,7 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 
 	following := serialization.NotFollowing
 	if len(em) > 0 {
-		cu, err := r.repo.GetUserByEmail(em)
+		cu, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 		if err != nil {
 			if err == domain.ErrUserNotFound {
 				return echo.ErrNotFound
@@ -198,22 +198,22 @@ func (r *usersHandler) profile(c echo.Context) (err error) {
 		following = serialization.MaybeFollowing(cu)
 	}
 
-	return c.JSON(
+	return ctx.JSON(
 		http.StatusOK,
 		serialization.UserToProfile(found, following))
 }
 
-func (r *usersHandler) follow(c echo.Context) error {
-	em, _, ok := c.(*userContext).identity()
+func (h *usersHandler) follow(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
-	if len(c.Param("username")) == 0 {
+	if len(ctx.Param("username")) == 0 {
 		return echo.ErrBadRequest
 	}
 
-	found, err := r.repo.GetUserByUsername(c.Param("username"))
+	found, err := h.repo.GetUserByUsername(ctx.Request().Context(), ctx.Param("username"))
 	if err != nil {
 		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
@@ -221,7 +221,7 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	err = r.repo.UpdateFanboyByEmail(
+	err = h.repo.UpdateFanboyByEmail(ctx.Request().Context(),
 		em,
 		func(u *domain.Fanboy) (*domain.Fanboy, error) {
 			u.StartFollowing(found.Email)
@@ -234,22 +234,22 @@ func (r *usersHandler) follow(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(
+	return ctx.JSON(
 		http.StatusOK,
 		serialization.UserToProfile(found, serialization.Following))
 }
 
-func (r *usersHandler) unfollow(c echo.Context) error {
-	em, _, ok := c.(*userContext).identity()
+func (h *usersHandler) unfollow(ctx echo.Context) error {
+	em, _, ok := ctx.(*userContext).identity()
 	if !ok {
 		return identityNotOk
 	}
 
-	if len(c.Param("username")) == 0 {
+	if len(ctx.Param("username")) == 0 {
 		return echo.ErrBadRequest
 	}
 
-	found, err := r.repo.GetUserByUsername(c.Param("username"))
+	found, err := h.repo.GetUserByUsername(ctx.Request().Context(), ctx.Param("username"))
 	if err != nil {
 		if err == domain.ErrUserNotFound {
 			return echo.ErrNotFound
@@ -257,7 +257,7 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	err = r.repo.UpdateFanboyByEmail(
+	err = h.repo.UpdateFanboyByEmail(ctx.Request().Context(),
 		em,
 		func(u *domain.Fanboy) (*domain.Fanboy, error) {
 			u.StopFollowing(found.Email)
@@ -270,7 +270,7 @@ func (r *usersHandler) unfollow(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(
+	return ctx.JSON(
 		http.StatusOK,
 		serialization.UserToProfile(found, serialization.NotFollowing))
 }

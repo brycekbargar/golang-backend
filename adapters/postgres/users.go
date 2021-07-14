@@ -12,10 +12,8 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-var ctx = context.TODO()
-
 // CreateUser creates a new user.
-func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
+func (r *implementation) CreateUser(ctx context.Context, u *domain.User) (*domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
@@ -53,18 +51,18 @@ INSERT INTO user_passwords (id, hash)
 		return nil, err
 	}
 
-	return getUserByEmail(r.db, u.Email)
+	return getUserByEmail(ctx, r.db, u.Email)
 }
 
 // GetUserByEmail finds a single user based on their email address.
-func (r *implementation) GetUserByEmail(em string) (*domain.Fanboy, error) {
+func (r *implementation) GetUserByEmail(ctx context.Context, em string) (*domain.Fanboy, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Commit(ctx)
 
-	found, err := getUserByEmail(tx, em)
+	found, err := getUserByEmail(ctx, tx, em)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +108,7 @@ SELECT a.slug
 	}, nil
 }
 
-func getUserByEmail(q pgxscan.Querier, em string) (*domain.User, error) {
+func getUserByEmail(ctx context.Context, q pgxscan.Querier, em string) (*domain.User, error) {
 	found := new(domain.User)
 	err := pgxscan.Get(ctx, q, found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
@@ -128,8 +126,8 @@ SELECT u.email, u.username, u.bio, u.image, p.hash as password
 }
 
 // GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
-func (r *implementation) GetAuthorByEmail(em string) domain.Author {
-	auth, err := getUserByEmail(r.db, em)
+func (r *implementation) GetAuthorByEmail(ctx context.Context, em string) domain.Author {
+	auth, err := getUserByEmail(ctx, r.db, em)
 	if err != nil {
 		return nil
 	}
@@ -137,7 +135,7 @@ func (r *implementation) GetAuthorByEmail(em string) domain.Author {
 }
 
 // GetUserByUsername finds a single user based on their username.
-func (r *implementation) GetUserByUsername(un string) (*domain.User, error) {
+func (r *implementation) GetUserByUsername(ctx context.Context, un string) (*domain.User, error) {
 	found := new(domain.User)
 	err := pgxscan.Get(ctx, r.db, found, `
 SELECT u.email, u.username, u.bio, u.image, p.hash as password
@@ -156,13 +154,13 @@ SELECT u.email, u.username, u.bio, u.image, p.hash as password
 
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
-func (r *implementation) UpdateUserByEmail(em string, update func(*domain.User) (*domain.User, error)) (*domain.User, error) {
+func (r *implementation) UpdateUserByEmail(ctx context.Context, em string, update func(*domain.User) (*domain.User, error)) (*domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	u, err := getUserByEmail(tx, em)
+	u, err := getUserByEmail(ctx, tx, em)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
@@ -208,13 +206,13 @@ UPDATE user_passwords
 		return nil, err
 	}
 
-	return getUserByEmail(r.db, u.Email)
+	return getUserByEmail(ctx, r.db, u.Email)
 }
 
 // UpdateFanboyByEmail finds a single user based on their email address,
 // then applies the provide mutations (probably to the follower list).
-func (r *implementation) UpdateFanboyByEmail(em string, update func(*domain.Fanboy) (*domain.Fanboy, error)) error {
-	f, err := r.GetUserByEmail(em)
+func (r *implementation) UpdateFanboyByEmail(ctx context.Context, em string, update func(*domain.Fanboy) (*domain.Fanboy, error)) error {
+	f, err := r.GetUserByEmail(ctx, em)
 	if err != nil {
 		return err
 	}

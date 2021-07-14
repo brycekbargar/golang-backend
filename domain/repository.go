@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 // ErrUserNotFound indicates the requested user was not found.
 var ErrUserNotFound = errors.New("user not found")
@@ -29,36 +32,36 @@ type ListCriteria struct {
 // Repository allows performing abstracted I/O operations on users.
 type Repository interface {
 	// CreateUser creates a new user.
-	CreateUser(*User) (*User, error)
+	CreateUser(context.Context, *User) (*User, error)
 	// GetUserByEmail finds a single user based on their email address.
-	GetUserByEmail(string) (*Fanboy, error)
+	GetUserByEmail(context.Context, string) (*Fanboy, error)
 	// GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
-	GetAuthorByEmail(string) Author
+	GetAuthorByEmail(context.Context, string) Author
 	// GetUserByUsername finds a single user based on their username.
-	GetUserByUsername(string) (*User, error)
+	GetUserByUsername(context.Context, string) (*User, error)
 	// UpdateUserByEmail finds a single user based on their email address,
 	// then applies the provide mutations.
-	UpdateUserByEmail(string, func(*User) (*User, error)) (*User, error)
+	UpdateUserByEmail(context.Context, string, func(*User) (*User, error)) (*User, error)
 	// UpdateFanboyByEmail finds a single user based on their email address,
 	// then applies the provide mutations (probably to the follower list).
-	UpdateFanboyByEmail(string, func(*Fanboy) (*Fanboy, error)) error
+	UpdateFanboyByEmail(context.Context, string, func(*Fanboy) (*Fanboy, error)) error
 
 	// CreateArticle creates a new article.
-	CreateArticle(*Article) (*AuthoredArticle, error)
+	CreateArticle(context.Context, *Article) (*AuthoredArticle, error)
 	// LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-	LatestArticlesByCriteria(ListCriteria) ([]AuthoredArticle, error)
+	LatestArticlesByCriteria(context.Context, ListCriteria) ([]AuthoredArticle, error)
 	// GetArticleBySlug gets a single article with the given slug.
-	GetArticleBySlug(string) (*AuthoredArticle, error)
+	GetArticleBySlug(context.Context, string) (*AuthoredArticle, error)
 	// GetCommentsBySlug gets a single article and its comments with the given slug.
-	GetCommentsBySlug(string) (*CommentedArticle, error)
+	GetCommentsBySlug(context.Context, string) (*CommentedArticle, error)
 	// UpdateArticleBySlug finds a single article based on its slug
 	// then applies the provide mutations.
-	UpdateArticleBySlug(string, func(*Article) (*Article, error)) (*AuthoredArticle, error)
+	UpdateArticleBySlug(context.Context, string, func(*Article) (*Article, error)) (*AuthoredArticle, error)
 	// UpdateCommentsBySlug finds a single article based on its slug
 	// then applies the provide mutations to its comments.
-	UpdateCommentsBySlug(string, func(*CommentedArticle) (*CommentedArticle, error)) (*Comment, error)
+	UpdateCommentsBySlug(context.Context, string, func(*CommentedArticle) (*CommentedArticle, error)) (*Comment, error)
 	// DeleteArticle deletes the article if it exists.
-	DeleteArticle(*Article) error
+	DeleteArticle(context.Context, *Article) error
 	// DistinctTags returns a distinct list of tags on all articles
-	DistinctTags() ([]string, error)
+	DistinctTags(context.Context) ([]string, error)
 }

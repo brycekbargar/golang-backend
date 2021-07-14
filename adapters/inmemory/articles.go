@@ -1,6 +1,7 @@
 package inmemory
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"time"
@@ -9,7 +10,7 @@ import (
 )
 
 // Create creates a new article.
-func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArticle, error) {
+func (r *implementation) CreateArticle(ctx context.Context, a *domain.Article) (*domain.AuthoredArticle, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -35,11 +36,11 @@ func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArtic
 		a.AuthorEmail,
 		make([]commentRecord, 0),
 	}
-	return r.GetArticleBySlug(a.Slug)
+	return r.GetArticleBySlug(ctx, a.Slug)
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
+func (r *implementation) LatestArticlesByCriteria(ctx context.Context, query domain.ListCriteria) (
 	[]domain.AuthoredArticle,
 	error,
 ) {
@@ -88,7 +89,7 @@ func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
 			continue
 		}
 
-		da, err := r.GetArticleBySlug(ar.slug)
+		da, err := r.GetArticleBySlug(ctx, ar.slug)
 		if err != nil {
 			continue
 		}
@@ -104,7 +105,7 @@ func (r *implementation) LatestArticlesByCriteria(query domain.ListCriteria) (
 }
 
 // GetArticleBySlug gets a single article with the given slug.
-func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, error) {
+func (r *implementation) GetArticleBySlug(_ context.Context, s string) (*domain.AuthoredArticle, error) {
 	if a, ok := r.articles[strings.ToLower(s)]; ok {
 
 		aa, ok := r.users[strings.ToLower(a.author)]
@@ -139,8 +140,8 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
-func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, error) {
-	a, err := r.GetArticleBySlug(s)
+func (r *implementation) GetCommentsBySlug(ctx context.Context, s string) (*domain.CommentedArticle, error) {
+	a, err := r.GetArticleBySlug(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -166,11 +167,11 @@ func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, 
 
 // UpdateArticleBySlug finds a single article based on its slug
 // then applies the provide mutations.
-func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
+func (r *implementation) UpdateArticleBySlug(ctx context.Context, s string, update func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	f, err := r.GetArticleBySlug(s)
+	f, err := r.GetArticleBySlug(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -217,16 +218,17 @@ func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Artic
 		make([]commentRecord, 0),
 	}
 
-	return r.GetArticleBySlug(a.Slug)
+	return r.GetArticleBySlug(ctx, a.Slug)
 }
 
 // UpdateCommentsBySlug finds a single article based on its slug
 // then applies the provide mutations to its comments.
-func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.CommentedArticle) (*domain.CommentedArticle, error)) (*domain.Comment, error) {
+func (r *implementation) UpdateCommentsBySlug(ctx context.Context, s string, update func(*domain.CommentedArticle) (*domain.CommentedArticle, error)) (*domain.Comment, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	f, err := r.GetCommentsBySlug(s)
+	f, err := r.GetCommentsBySlug(ctx, s)
+
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +271,7 @@ func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.Comm
 }
 
 // DeleteArticleBySlug deletes the article with the provide slug if it exists.
-func (r *implementation) DeleteArticle(a *domain.Article) error {
+func (r *implementation) DeleteArticle(_ context.Context, a *domain.Article) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -282,7 +284,7 @@ func (r *implementation) DeleteArticle(a *domain.Article) error {
 }
 
 // DistinctTags returns a distinct list of tags on articles
-func (r *implementation) DistinctTags() ([]string, error) {
+func (r *implementation) DistinctTags(_ context.Context) ([]string, error) {
 	tm := make(map[string]interface{})
 	for _, ar := range r.articles {
 		for _, t := range strings.Split(ar.tagList, ",") {
@@ -299,8 +301,8 @@ func (r *implementation) DistinctTags() ([]string, error) {
 }
 
 // GetAuthorByEmail finds a single author based on their email address or nil if they don't exist.
-func (r *implementation) GetAuthorByEmail(e string) domain.Author {
-	if a, err := r.GetUserByEmail(e); err == nil {
+func (r *implementation) GetAuthorByEmail(ctx context.Context, e string) domain.Author {
+	if a, err := r.GetUserByEmail(ctx, e); err == nil {
 		return a
 	}
 

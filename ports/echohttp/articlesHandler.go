@@ -64,7 +64,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
 	var u *domain.Fanboy
 	if ok {
-		u, _ = h.repo.GetUserByEmail(em)
+		u, _ = h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	}
 
 	lc := domain.ListCriteria{
@@ -74,13 +74,13 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 
 	a := ctx.QueryParam("author")
 	if len(a) > 0 {
-		if ae, err := h.repo.GetUserByUsername(a); err == nil {
+		if ae, err := h.repo.GetUserByUsername(ctx.Request().Context(), a); err == nil {
 			lc.AuthorEmails = []string{ae.Email}
 		}
 	}
 	f := ctx.QueryParam("favorited")
 	if len(f) > 0 {
-		if fe, err := h.repo.GetUserByUsername(f); err == nil {
+		if fe, err := h.repo.GetUserByUsername(ctx.Request().Context(), f); err == nil {
 			lc.FavoritedByUserEmail = fe.Email
 		}
 	}
@@ -94,7 +94,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 	}
 
 	// get all articles
-	al, err := h.repo.LatestArticlesByCriteria(lc)
+	al, err := h.repo.LatestArticlesByCriteria(ctx.Request().Context(), lc)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (h *articlesHandler) list(ctx echo.Context) error {
 
 func (h *articlesHandler) feed(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.repo.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
@@ -125,7 +125,7 @@ func (h *articlesHandler) feed(ctx echo.Context) error {
 	}
 
 	// Get the feed articles
-	al, err := h.repo.LatestArticlesByCriteria(lc)
+	al, err := h.repo.LatestArticlesByCriteria(ctx.Request().Context(), lc)
 	if err != nil {
 		return err
 	}
@@ -139,11 +139,11 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
 	var u *domain.Fanboy
 	if ok {
-		u, _ = h.repo.GetUserByEmail(em)
+		u, _ = h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	}
 
 	// get the article
-	ar, err := h.repo.GetArticleBySlug(ctx.Param("slug"))
+	ar, err := h.repo.GetArticleBySlug(ctx.Request().Context(), ctx.Param("slug"))
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (h *articlesHandler) article(ctx echo.Context) error {
 
 func (h *articlesHandler) create(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.repo.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
@@ -167,7 +167,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 			err)
 	}
 
-	created, err := h.repo.CreateArticle(article)
+	created, err := h.repo.CreateArticle(ctx.Request().Context(), article)
 	if err != nil {
 		if err == domain.ErrDuplicateArticle {
 			return echo.NewHTTPError(
@@ -184,7 +184,7 @@ func (h *articlesHandler) create(ctx echo.Context) error {
 
 func (h *articlesHandler) update(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.repo.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
@@ -196,7 +196,7 @@ func (h *articlesHandler) update(ctx echo.Context) error {
 			err)
 	}
 
-	updated, err := h.repo.UpdateArticleBySlug(
+	updated, err := h.repo.UpdateArticleBySlug(ctx.Request().Context(),
 		ctx.Param("slug"),
 		func(a *domain.Article) (*domain.Article, error) {
 			if a.AuthorEmail != em {
@@ -221,7 +221,7 @@ func (h *articlesHandler) delete(ctx echo.Context) error {
 		return identityNotOk
 	}
 
-	ar, err := h.repo.GetArticleBySlug(ctx.Param("slug"))
+	ar, err := h.repo.GetArticleBySlug(ctx.Request().Context(), ctx.Param("slug"))
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (h *articlesHandler) delete(ctx echo.Context) error {
 		return errors.New("articles can only be deleted by their author")
 	}
 
-	if err = h.repo.DeleteArticle(&ar.Article); err != nil {
+	if err = h.repo.DeleteArticle(ctx.Request().Context(), &ar.Article); err != nil {
 		return err
 	}
 
@@ -240,22 +240,26 @@ func (h *articlesHandler) commentList(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
 	var u *domain.Fanboy
 	if ok {
-		u, _ = h.repo.GetUserByEmail(em)
+		u, _ = h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	}
 
-	ar, err := h.repo.GetCommentsBySlug(ctx.Param("slug"))
+	ar, err := h.repo.GetCommentsBySlug(ctx.Request().Context(), ctx.Param("slug"))
 	if err != nil {
 		return err
 	}
 
 	return ctx.JSON(
 		http.StatusOK,
-		serialization.ArticleToCommentList(ar, h.repo.GetAuthorByEmail, u))
+		serialization.ArticleToCommentList(ar, func() func(string) domain.Author {
+			return func(em string) domain.Author {
+				return h.repo.GetAuthorByEmail(ctx.Request().Context(), em)
+			}
+		}, u))
 }
 
 func (h *articlesHandler) addComment(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.repo.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
@@ -266,7 +270,7 @@ func (h *articlesHandler) addComment(ctx echo.Context) error {
 	}
 
 	// Make the thing
-	newc, err := h.repo.UpdateCommentsBySlug(
+	newc, err := h.repo.UpdateCommentsBySlug(ctx.Request().Context(),
 		ctx.Param("slug"),
 		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			return a, a.AddComment(body, em)
@@ -293,7 +297,7 @@ func (h *articlesHandler) removeComment(ctx echo.Context) error {
 	}
 
 	// Delete the thing
-	_, err = h.repo.UpdateCommentsBySlug(
+	_, err = h.repo.UpdateCommentsBySlug(ctx.Request().Context(),
 		ctx.Param("slug"),
 		func(a *domain.CommentedArticle) (*domain.CommentedArticle, error) {
 			for _, c := range a.Comments {
@@ -314,18 +318,18 @@ func (h *articlesHandler) removeComment(ctx echo.Context) error {
 
 func (h *articlesHandler) favorite(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.repo.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
 
 	s := ctx.Param("slug")
-	found, err := h.repo.GetArticleBySlug(s)
+	found, err := h.repo.GetArticleBySlug(ctx.Request().Context(), s)
 	if err != nil {
 		return err
 	}
 
-	err = h.repo.UpdateFanboyByEmail(
+	err = h.repo.UpdateFanboyByEmail(ctx.Request().Context(),
 		em,
 		func(u *domain.Fanboy) (*domain.Fanboy, error) {
 			u.Favorite(s)
@@ -343,18 +347,18 @@ func (h *articlesHandler) favorite(ctx echo.Context) error {
 
 func (h *articlesHandler) unfavorite(ctx echo.Context) error {
 	em, _, ok := ctx.(*userContext).identity()
-	u, err := h.repo.GetUserByEmail(em)
+	u, err := h.repo.GetUserByEmail(ctx.Request().Context(), em)
 	if !ok || err != nil {
 		return identityNotOk
 	}
 
 	s := ctx.Param("slug")
-	found, err := h.repo.GetArticleBySlug(s)
+	found, err := h.repo.GetArticleBySlug(ctx.Request().Context(), s)
 	if err != nil {
 		return err
 	}
 
-	err = h.repo.UpdateFanboyByEmail(
+	err = h.repo.UpdateFanboyByEmail(ctx.Request().Context(),
 		em,
 		func(u *domain.Fanboy) (*domain.Fanboy, error) {
 			u.Favorite(s)
@@ -371,7 +375,7 @@ func (h *articlesHandler) unfavorite(ctx echo.Context) error {
 }
 
 func (h *articlesHandler) tags(ctx echo.Context) error {
-	tags, err := h.repo.DistinctTags()
+	tags, err := h.repo.DistinctTags(ctx.Request().Context())
 	if err != nil {
 		return err
 	}

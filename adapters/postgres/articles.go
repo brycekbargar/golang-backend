@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 // CreateArticle creates a new article.
-func (r *implementation) CreateArticle(a *domain.Article) (*domain.AuthoredArticle, error) {
+func (r *implementation) CreateArticle(ctx context.Context, a *domain.Article) (*domain.AuthoredArticle, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
@@ -45,11 +46,11 @@ INSERT INTO articles (slug, title, description, body, tags, author_id)
 		return nil, err
 	}
 
-	return r.GetArticleBySlug(a.Slug)
+	return r.GetArticleBySlug(ctx, a.Slug)
 }
 
 // LatestArticlesByCriteria lists articles paged/filtered by the given criteria.
-func (r *implementation) LatestArticlesByCriteria(lc domain.ListCriteria) ([]domain.AuthoredArticle, error) {
+func (r *implementation) LatestArticlesByCriteria(ctx context.Context, lc domain.ListCriteria) ([]domain.AuthoredArticle, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
@@ -86,7 +87,7 @@ LIMIT $1 OFFSET $2
 		return nil, err
 	}
 
-	latest, err := getArticleBySlug(tx, slugs...)
+	latest, err := getArticleBySlug(ctx, tx, slugs...)
 	if err == domain.ErrArticleNotFound {
 		return make([]domain.AuthoredArticle, 0), nil
 	}
@@ -98,14 +99,14 @@ LIMIT $1 OFFSET $2
 }
 
 // GetArticleBySlug gets a single article with the given slug.
-func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, error) {
+func (r *implementation) GetArticleBySlug(ctx context.Context, s string) (*domain.AuthoredArticle, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Commit(ctx)
 
-	found, err := getArticleBySlug(tx, s)
+	found, err := getArticleBySlug(ctx, tx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +114,7 @@ func (r *implementation) GetArticleBySlug(s string) (*domain.AuthoredArticle, er
 	return &found[0], nil
 }
 
-func getArticleBySlug(q pgxscan.Querier, s ...string) ([]domain.AuthoredArticle, error) {
+func getArticleBySlug(ctx context.Context, q pgxscan.Querier, s ...string) ([]domain.AuthoredArticle, error) {
 	var found []domain.AuthoredArticle
 	err := pgxscan.Select(ctx, q, &found, `
 WITH faves AS (
@@ -156,21 +157,21 @@ ORDER BY a.updated DESC
 	// TODO: Cache the authors? Somehow read map them using scany?
 	for i := range found {
 		a := &found[i]
-		a.Author, _ = getUserByEmail(q, a.AuthorEmail)
+		a.Author, _ = getUserByEmail(ctx, q, a.AuthorEmail)
 	}
 
 	return found, nil
 }
 
 // GetCommentsBySlug gets a single article and its comments with the given slug.
-func (r *implementation) GetCommentsBySlug(s string) (*domain.CommentedArticle, error) {
+func (r *implementation) GetCommentsBySlug(ctx context.Context, s string) (*domain.CommentedArticle, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Commit(ctx)
 
-	found, err := getArticleBySlug(tx, s)
+	found, err := getArticleBySlug(ctx, tx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -195,13 +196,13 @@ SELECT c.id, c.body, c.created as created_at_utc, u.email as author_email
 
 // UpdateArticleBySlug finds a single article based on its slug
 // then applies the provide mutations.
-func (r *implementation) UpdateArticleBySlug(s string, update func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
+func (r *implementation) UpdateArticleBySlug(ctx context.Context, s string, update func(*domain.Article) (*domain.Article, error)) (*domain.AuthoredArticle, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	as, err := getArticleBySlug(tx, s)
+	as, err := getArticleBySlug(ctx, tx, s)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
@@ -244,13 +245,13 @@ UPDATE articles
 		return nil, err
 	}
 
-	return r.GetArticleBySlug(a.Slug)
+	return r.GetArticleBySlug(ctx, a.Slug)
 }
 
 // UpdateCommentsBySlug finds a single article based on its slug
 // then applies the provide mutations to its comments.
-func (r *implementation) UpdateCommentsBySlug(s string, update func(*domain.CommentedArticle) (*domain.CommentedArticle, error)) (*domain.Comment, error) {
-	a, err := r.GetCommentsBySlug(s)
+func (r *implementation) UpdateCommentsBySlug(ctx context.Context, s string, update func(*domain.CommentedArticle) (*domain.CommentedArticle, error)) (*domain.Comment, error) {
+	a, err := r.GetCommentsBySlug(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +323,7 @@ INSERT INTO article_comments (article_id, author_id, body)
 }
 
 // DeleteArticle deletes the article if it exists.
-func (r *implementation) DeleteArticle(a *domain.Article) error {
+func (r *implementation) DeleteArticle(ctx context.Context, a *domain.Article) error {
 	if a == nil {
 		return nil
 	}
@@ -352,7 +353,7 @@ DELETE FROM articles a
 }
 
 // DistinctTags returns a distinct list of tags on all articles
-func (r *implementation) DistinctTags() ([]string, error) {
+func (r *implementation) DistinctTags(ctx context.Context) ([]string, error) {
 	var tags []string
 	err := pgxscan.Select(ctx, r.db, &tags, `
 SELECT DISTINCT UNNEST(tags) FROM articles

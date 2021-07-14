@@ -2,13 +2,14 @@
 package inmemory
 
 import (
+	"context"
 	"strings"
 
 	"github.com/brycekbargar/realworld-backend/domain"
 )
 
 // Create creates a new user.
-func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
+func (r *implementation) CreateUser(ctx context.Context, u *domain.User) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -29,12 +30,12 @@ func (r *implementation) CreateUser(u *domain.User) (*domain.User, error) {
 		u.Password,
 	}
 
-	f, err := r.GetUserByEmail(u.Email)
+	f, err := r.GetUserByEmail(ctx, u.Email)
 	return &f.User, err
 }
 
 // GetUserByEmail finds a single user based on their username.
-func (r *implementation) GetUserByEmail(e string) (*domain.Fanboy, error) {
+func (r *implementation) GetUserByEmail(_ context.Context, e string) (*domain.Fanboy, error) {
 	if u, ok := r.users[strings.ToLower(e)]; ok {
 
 		emails := strings.Split(u.following, ",")
@@ -66,10 +67,10 @@ func (r *implementation) GetUserByEmail(e string) (*domain.Fanboy, error) {
 }
 
 // GetUserByUsername finds a single user based on their username.
-func (r *implementation) GetUserByUsername(un string) (*domain.User, error) {
+func (r *implementation) GetUserByUsername(ctx context.Context, un string) (*domain.User, error) {
 	for k, v := range r.users {
 		if strings.ToLower(v.username) == strings.ToLower(un) {
-			f, err := r.GetUserByEmail(k)
+			f, err := r.GetUserByEmail(ctx, k)
 			return &f.User, err
 		}
 	}
@@ -79,11 +80,11 @@ func (r *implementation) GetUserByUsername(un string) (*domain.User, error) {
 
 // UpdateUserByEmail finds a single user based on their email address,
 // then applies the provide mutations.
-func (r *implementation) UpdateUserByEmail(e string, update func(*domain.User) (*domain.User, error)) (*domain.User, error) {
+func (r *implementation) UpdateUserByEmail(ctx context.Context, e string, update func(*domain.User) (*domain.User, error)) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	f, err := r.GetUserByEmail(e)
+	f, err := r.GetUserByEmail(ctx, e)
 	if err != nil {
 		return nil, err
 	}
@@ -142,17 +143,17 @@ func (r *implementation) UpdateUserByEmail(e string, update func(*domain.User) (
 		u.Password,
 	}
 
-	f, err = r.GetUserByEmail(u.Email)
+	f, err = r.GetUserByEmail(ctx, u.Email)
 	return &f.User, err
 }
 
-func (r *implementation) UpdateFanboyByEmail(e string, update func(*domain.Fanboy) (*domain.Fanboy, error)) error {
+func (r *implementation) UpdateFanboyByEmail(ctx context.Context, e string, update func(*domain.Fanboy) (*domain.Fanboy, error)) error {
 	var uf *domain.Fanboy
 	err := func() error {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 
-		f, err := r.GetUserByEmail(e)
+		f, err := r.GetUserByEmail(ctx, e)
 		if err != nil {
 			return err
 		}
@@ -190,7 +191,7 @@ func (r *implementation) UpdateFanboyByEmail(e string, update func(*domain.Fanbo
 		return err
 	}
 
-	_, err = r.UpdateUserByEmail(e, func(*domain.User) (*domain.User, error) {
+	_, err = r.UpdateUserByEmail(ctx, e, func(*domain.User) (*domain.User, error) {
 		return &uf.User, nil
 	})
 	return err

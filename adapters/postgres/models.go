@@ -11,6 +11,8 @@ import (
 
 // MustNewInstance creates a new instance of the postgres store with the repository interface implementations. Panics on error.
 func MustNewInstance(dsn string) Migrateable {
+	ctx := context.Background()
+
 	pool, err := pgxpool.Connect(ctx, dsn)
 	if err != nil {
 		panic(err)
@@ -27,6 +29,8 @@ type Migrateable interface {
 }
 
 func (r *implementation) MustMigrate() domain.Repository {
+	ctx := context.Background()
+
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		panic(err)

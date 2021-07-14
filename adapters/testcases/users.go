@@ -14,24 +14,24 @@ func Users_CreateUser(
 	r domain.Repository,
 ) {
 	u1 := testUser("faithful")
-	cu1, err := r.CreateUser(u1)
+	cu1, err := r.CreateUser(ctx, u1)
 	require.NoError(t, err)
 	assert.Equal(t, u1, cu1)
 
 	u2 := testUser("kindhearted")
-	cu2, err := r.CreateUser(u2)
+	cu2, err := r.CreateUser(ctx, u2)
 	require.NoError(t, err)
 	assert.Equal(t, u2, cu2)
 
 	u1.Username = "icy username"
-	_, err = r.CreateUser(u1)
+	_, err = r.CreateUser(ctx, u1)
 	assert.ErrorIs(t, err, domain.ErrDuplicateUser)
 
 	u2.Email = "user@icy.com"
-	_, err = r.CreateUser(u2)
+	_, err = r.CreateUser(ctx, u2)
 	assert.ErrorIs(t, err, domain.ErrDuplicateUser)
 
-	r.UpdateUserByEmail(
+	r.UpdateUserByEmail(ctx,
 		"user@faithful.com",
 		func(u *domain.User) (*domain.User, error) {
 			u.Bio = "noisy bio"
@@ -39,7 +39,7 @@ func Users_CreateUser(
 			u.SetPassword("!4321tseT")
 			return u, nil
 		})
-	fu, err := r.GetUserByEmail("user@faithful.com")
+	fu, err := r.GetUserByEmail(ctx, "user@faithful.com")
 	require.NoError(t, err)
 	assert.Equal(t, "noisy bio", fu.Bio)
 	assert.Equal(t, "http://noisy.com/profile.png", fu.Image)
@@ -53,35 +53,35 @@ func Users_GetUserByEmail(
 	r domain.Repository,
 ) {
 	u := testUser("finicky")
-	_, err := r.CreateUser(u)
+	_, err := r.CreateUser(ctx, u)
 	require.NoError(t, err)
 
-	fu, err := r.GetUserByEmail(u.Email)
+	fu, err := r.GetUserByEmail(ctx, u.Email)
 	require.NoError(t, err)
 	assert.Equal(t, *u, fu.User)
 
-	_, err = r.GetUserByEmail("user@light.com")
+	_, err = r.GetUserByEmail(ctx, "user@light.com")
 	assert.ErrorIs(t, err, domain.ErrUserNotFound)
 
-	r.UpdateUserByEmail(
+	r.UpdateUserByEmail(ctx,
 		"user@finicky.com",
 		func(u *domain.User) (*domain.User, error) {
 			u.Email = "user@nutty.com"
 			return u, nil
 		})
-	fu, err = r.GetUserByEmail("user@nutty.com")
+	fu, err = r.GetUserByEmail(ctx, "user@nutty.com")
 	require.NoError(t, err)
 	assert.Equal(t, "finicky username", fu.Username)
 
-	r.CreateUser(testUser("snobbish"))
-	_, err = r.UpdateUserByEmail(
+	r.CreateUser(ctx, testUser("snobbish"))
+	_, err = r.UpdateUserByEmail(ctx,
 		"user@nutty.com",
 		func(u *domain.User) (*domain.User, error) {
 			u.Email = "user@snobbish.com"
 			return u, nil
 		})
 	assert.ErrorIs(t, err, domain.ErrDuplicateUser)
-	fu, err = r.GetUserByEmail("user@nutty.com")
+	fu, err = r.GetUserByEmail(ctx, "user@nutty.com")
 	require.NoError(t, err)
 }
 
@@ -90,35 +90,35 @@ func Users_GetUserByUsername(
 	r domain.Repository,
 ) {
 	u := testUser("stormy")
-	_, err := r.CreateUser(u)
+	_, err := r.CreateUser(ctx, u)
 	require.NoError(t, err)
 
-	fu, err := r.GetUserByUsername(u.Username)
+	fu, err := r.GetUserByUsername(ctx, u.Username)
 	require.NoError(t, err)
 	assert.Equal(t, u, fu)
 
-	_, err = r.GetUserByUsername("dashing username")
+	_, err = r.GetUserByUsername(ctx, "dashing username")
 	assert.ErrorIs(t, err, domain.ErrUserNotFound)
 
-	r.UpdateUserByEmail(
+	r.UpdateUserByEmail(ctx,
 		"user@stormy.com",
 		func(u *domain.User) (*domain.User, error) {
 			u.Username = "thirsty username"
 			return u, nil
 		})
-	fu, err = r.GetUserByUsername("thirsty username")
+	fu, err = r.GetUserByUsername(ctx, "thirsty username")
 	require.NoError(t, err)
 	assert.Equal(t, "user@stormy.com", fu.Email)
 
-	r.CreateUser(testUser("dusty"))
-	_, err = r.UpdateUserByEmail(
+	r.CreateUser(ctx, testUser("dusty"))
+	_, err = r.UpdateUserByEmail(ctx,
 		"user@stormy.com",
 		func(u *domain.User) (*domain.User, error) {
 			u.Username = "dusty username"
 			return u, nil
 		})
 	assert.ErrorIs(t, err, domain.ErrDuplicateUser)
-	fu, err = r.GetUserByUsername("thirsty username")
+	fu, err = r.GetUserByUsername(ctx, "thirsty username")
 	assert.NoError(t, err)
 }
 
@@ -127,20 +127,20 @@ func Users_UpdateFanboyByEmail_Following(
 	r domain.Repository,
 ) {
 	u := testUser("gifted")
-	_, err := r.CreateUser(u)
+	_, err := r.CreateUser(ctx, u)
 	require.NoError(t, err)
 
-	fu, err := r.GetUserByEmail(u.Email)
+	fu, err := r.GetUserByEmail(ctx, u.Email)
 	require.NoError(t, err)
 	assert.Empty(t, fu.FollowingEmails())
 
 	for _, a := range []string{"important", "lumpy", "remarkable", "valuable"} {
 		u := testUser(a)
-		_, err := r.CreateUser(u)
+		_, err := r.CreateUser(ctx, u)
 		require.NoError(t, err)
 	}
 
-	err = r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(ctx,
 		"user@gifted.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.StartFollowing("user@lumpy.com")
@@ -149,13 +149,13 @@ func Users_UpdateFanboyByEmail_Following(
 		})
 	require.NoError(t, err)
 
-	fu, err = r.GetUserByEmail("user@gifted.com")
+	fu, err = r.GetUserByEmail(ctx, "user@gifted.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FollowingEmails(), 2)
 	assert.True(t, fu.IsFollowing("user@lumpy.com"))
 	assert.False(t, fu.IsFollowing("user@valuable.com"))
 
-	_, err = r.UpdateUserByEmail(
+	_, err = r.UpdateUserByEmail(ctx,
 		"user@remarkable.com",
 		func(u *domain.User) (*domain.User, error) {
 			u.Email = "user@best.com"
@@ -163,12 +163,12 @@ func Users_UpdateFanboyByEmail_Following(
 		})
 	require.NoError(t, err)
 
-	fu, err = r.GetUserByEmail("user@gifted.com")
+	fu, err = r.GetUserByEmail(ctx, "user@gifted.com")
 	require.NoError(t, err)
 	assert.True(t, fu.IsFollowing("user@best.com"))
 	assert.False(t, fu.IsFollowing("user@remarkable.com"))
 
-	err = r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(ctx,
 		"user@gifted.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.StopFollowing("user@best.com")
@@ -179,7 +179,7 @@ func Users_UpdateFanboyByEmail_Following(
 		})
 	require.NoError(t, err)
 
-	fu, err = r.GetUserByEmail("user@gifted.com")
+	fu, err = r.GetUserByEmail(ctx, "user@gifted.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FollowingEmails(), 3)
 	assert.False(t, fu.IsFollowing("user@best.com"))
@@ -191,14 +191,14 @@ func Users_UpdateFanboyByEmail_Favorites(
 	r domain.Repository,
 ) {
 	u := testUser("luxuriant")
-	_, err := r.CreateUser(u)
+	_, err := r.CreateUser(ctx, u)
 	require.NoError(t, err)
 
-	fu, err := r.GetUserByEmail(u.Email)
+	fu, err := r.GetUserByEmail(ctx, u.Email)
 	require.NoError(t, err)
 	assert.Empty(t, fu.FavoritedSlugs())
 
-	r.CreateUser(testAuthor("brainy"))
+	r.CreateUser(ctx, testAuthor("brainy"))
 	for _, adj := range []string{
 		"callous",
 		"aware",
@@ -207,11 +207,11 @@ func Users_UpdateFanboyByEmail_Favorites(
 		a := testArticle(adj)
 		a.AuthorEmail = "author@brainy.com"
 
-		_, err := r.CreateArticle(a)
+		_, err := r.CreateArticle(ctx, a)
 		require.NoError(t, err)
 	}
 
-	err = r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(ctx,
 		"user@luxuriant.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.Favorite("callous-title")
@@ -220,30 +220,30 @@ func Users_UpdateFanboyByEmail_Favorites(
 		})
 	require.NoError(t, err)
 
-	fu, err = r.GetUserByEmail("user@luxuriant.com")
+	fu, err = r.GetUserByEmail(ctx, "user@luxuriant.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FavoritedSlugs(), 2)
 	assert.True(t, fu.Favors("callous-title"))
 	assert.False(t, fu.Favors("magnificient-title"))
 
-	fa, err := r.GetArticleBySlug("callous-title")
+	fa, err := r.GetArticleBySlug(ctx, "callous-title")
 	require.NoError(t, err)
 	assert.Equal(t, 1, fa.FavoriteCount)
 
-	_, err = r.CreateUser(testUser("careful"))
+	_, err = r.CreateUser(ctx, testUser("careful"))
 	require.NoError(t, err)
-	r.UpdateFanboyByEmail(
+	r.UpdateFanboyByEmail(ctx,
 		"user@careful.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.Favorite("callous-title")
 			return f, nil
 		})
 
-	fa, err = r.GetArticleBySlug("callous-title")
+	fa, err = r.GetArticleBySlug(ctx, "callous-title")
 	require.NoError(t, err)
 	assert.Equal(t, 2, fa.FavoriteCount)
 
-	_, err = r.UpdateArticleBySlug(
+	_, err = r.UpdateArticleBySlug(ctx,
 		"callous-title",
 		func(a *domain.Article) (*domain.Article, error) {
 			a.SetTitle("careful-title")
@@ -251,12 +251,12 @@ func Users_UpdateFanboyByEmail_Favorites(
 		})
 	require.NoError(t, err)
 
-	fu, err = r.GetUserByEmail("user@luxuriant.com")
+	fu, err = r.GetUserByEmail(ctx, "user@luxuriant.com")
 	require.NoError(t, err)
 	assert.True(t, fu.Favors("careful-title"))
 	assert.False(t, fu.Favors("callous-title"))
 
-	err = r.UpdateFanboyByEmail(
+	err = r.UpdateFanboyByEmail(ctx,
 		"user@luxuriant.com",
 		func(f *domain.Fanboy) (*domain.Fanboy, error) {
 			f.Unfavorite("aware-title")
@@ -266,7 +266,7 @@ func Users_UpdateFanboyByEmail_Favorites(
 		})
 	require.NoError(t, err)
 
-	fu, err = r.GetUserByEmail("user@luxuriant.com")
+	fu, err = r.GetUserByEmail(ctx, "user@luxuriant.com")
 	require.NoError(t, err)
 	assert.Len(t, fu.FavoritedSlugs(), 2)
 	assert.False(t, fu.Favors("aware-title"))
